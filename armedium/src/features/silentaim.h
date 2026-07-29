@@ -1,0 +1,234 @@
+#pragma once
+#include <cstdint>
+#include <Windows.h>
+#include "../overlay/utils/W2S.h"
+#include "../rbx/globals/options.h"
+#include "../rbx/globals/globals.h"
+#include "../overlay/imgui/KeyBind.h"
+#include "aimbot.h" // reuse GetTargetPosition, GetVelocity
+
+inline RobloxInstance SilentAim_GetTargetPart(const RobloxPlayer& player, int boneIdx)
+{
+    switch (boneIdx)
+    {
+        case 0: return player.Head;
+        case 1: return player.HumanoidRootPart;
+        case 2: return (player.RigType == 0) ? player.Left_Arm : player.Left_Hand;
+        case 3: return (player.RigType == 0) ? player.Right_Arm : player.Right_Hand;
+        case 4: return (player.RigType == 0) ? player.Left_Leg : player.Left_Foot;
+        case 5: return (player.RigType == 0) ? player.Right_Leg : player.Right_Foot;
+        case 6: return (player.RigType == 1) ? player.Lower_Torso : player.HumanoidRootPart;
+        case 7: return (player.RigType == 1) ? player.Upper_Torso : player.HumanoidRootPart;
+        default: return player.Head;
+    }
+}
+
+inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
+{
+    RobloxInstance part = SilentAim_GetTargetPart(player, Options::SilentAim::TargetBone);
+    if (!part.address)
+        return Vectors::Vector3{ 0.f, 0.f, 0.f };
+
+    Vectors::Vector3 basePos = part.Position();
+
+    if (Options::SilentAim::Prediction)
+    {
+        Vectors::Vector3 velocity = GetVelocity(part);
+        basePos.x += velocity.x / Options::SilentAim::PredictionX;
+        basePos.y += velocity.y / Options::SilentAim::PredictionY;
+        basePos.z += velocity.z / Options::SilentAim::PredictionX;
+    }
+
+    return basePos;
+}
+
+inline RobloxPlayer SilentAim_GetClosestPlayer()
+{
+    RobloxPlayer target;
+    float maxDistance = FLT_MAX;
+    auto localTeam = Globals::Roblox::LocalPlayer.Team();
+    std::string localTeamColor;
+    if (localTeam.address != 0)
+    {
+        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
+    }
+    auto localCharacter = Globals::Roblox::LocalPlayer.Character();
+    auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
+    if (!localHRP.address)
+        return target;
+
+    POINT p;
+    GetCursorPos(&p);
+
+    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    {
+        if (!player.HumanoidRootPart.address)
+            continue;
+        if (player.address == Globals::Roblox::LocalPlayer.address)
+            continue;
+        if (Options::SilentAim::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty() &&
+            player.TeamColor == localTeamColor)
+            continue;
+        if (player.Health == 0)
+            continue;
+        if (Options::SilentAim::DownedCheck && player.Health > 0 && player.Health <= 5.0f)
+            continue;
+
+        Vectors::Vector3 aimPos = SilentAim_GetAimPos(player);
+        auto aimPos2D = WorldToScreen(aimPos);
+        if (aimPos2D.x == -1 && aimPos2D.y == -1)
+            continue;
+
+        Vectors::Vector3 diff = localHRP.Position() - aimPos;
+        float distance3D = diff.Magnitude();
+        if (distance3D > Options::SilentAim::Range)
+            continue;
+
+        float distance = aimPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
+        if (distance < maxDistance && distance <= Options::SilentAim::FOV)
+        {
+            maxDistance = distance;
+            target = player;
+        }
+    }
+    return target;
+}
+
+inline void RunSilentAim()
+{
+    if (!Options::SilentAim::Enabled)
+        return;
+
+    // Key handling (mirrors aimbot pattern)
+    static bool wasKeyPressed = false;
+    bool isKeyPressed = (Options::SilentAim::Key != 0) &&
+        ((GetAsyncKeyState(Options::SilentAim::Key) & 0x8000) != 0);
+
+    if (Options::SilentAim::ToggleType == 1)
+    {
+        if (isKeyPressed && !wasKeyPressed)
+            Options::SilentAim::Toggled = !Options::SilentAim::Toggled;
+        wasKeyPressed = isKeyPressed;
+        if (!Options::SilentAim::Toggled)
+        {
+            Options::SilentAim::CurrentTarget = 0;
+            return;
+        }
+    }
+    else
+    {
+        // Hold mode: only active while key held (or when Key==0, always active)
+        if (Options::SilentAim::Key != 0 && !isKeyPressed)
+        {
+            Options::SilentAim::CurrentTarget = 0;
+            Options::SilentAim::Toggled = false;
+            return;
+        }
+    }
+
+    RobloxPlayer target = SilentAim_GetClosestPlayer();
+    if (target.address == 0)
+    {
+        Options::SilentAim::CurrentTarget = 0;
+        return;
+    }
+
+    Options::SilentAim::CurrentTarget = target.address;
+    RobloxInstance targetPart = SilentAim_GetTargetPart(target, Options::SilentAim::TargetBone);
+    if (!targetPart.address)
+        return;
+
+    Vectors::Vector3 aimPos = SilentAim_GetAimPos(target);
+
+    // Method 0: PlayerMouse.Hit + Target overwrite (stable)
+    if (Options::SilentAim::Method == 0)
+    {
+        uintptr_t mouseAddr = Memory->read<uintptr_t>(
+            Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
+        if (mouseAddr)
+        {
+            sCFrame hitCFrame{};
+            hitCFrame.r00 = 1.0f; hitCFrame.r01 = 0.0f; hitCFrame.r02 = 0.0f;
+            hitCFrame.r10 = 0.0f; hitCFrame.r11 = 1.0f; hitCFrame.r12 = 0.0f;
+            hitCFrame.r20 = 0.0f; hitCFrame.r21 = 0.0f; hitCFrame.r22 = 1.0f;
+            hitCFrame.x = aimPos.x;
+            hitCFrame.y = aimPos.y;
+            hitCFrame.z = aimPos.z;
+
+            Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
+            Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
+        }
+    }
+
+    // Method 1: Camera raycast write to UnitRay + Hit + Target
+    // NOTE: UnitRay offset (0xe0) is unverified for this build and may crash.
+    // Disabled by default — enable only after verifying offsets in x64dbg.
+    if (false && Options::SilentAim::Method == 1)
+    {
+        uintptr_t mouseAddr = Memory->read<uintptr_t>(
+            Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
+        if (mouseAddr)
+        {
+            Vectors::Vector3 camPos = Memory->read<Vectors::Vector3>(
+                Globals::Roblox::Camera.address + Offsets::Camera::Position);
+            Vectors::Vector3 dir = aimPos - camPos;
+            float len = dir.Magnitude();
+            if (len > 0.0001f)
+            {
+                dir.x /= len;
+                dir.y /= len;
+                dir.z /= len;
+            }
+
+            sCFrame hitCFrame{};
+            hitCFrame.r00 = 1.0f; hitCFrame.r01 = 0.0f; hitCFrame.r02 = 0.0f;
+            hitCFrame.r10 = 0.0f; hitCFrame.r11 = 1.0f; hitCFrame.r12 = 0.0f;
+            hitCFrame.r20 = 0.0f; hitCFrame.r21 = 0.0f; hitCFrame.r22 = 1.0f;
+            hitCFrame.x = aimPos.x;
+            hitCFrame.y = aimPos.y;
+            hitCFrame.z = aimPos.z;
+
+            Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
+            Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
+            Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay, camPos);
+            Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay + 0xc, dir);
+        }
+    }
+
+    // Hitbox on Fire: inflate target part briefly on left-mouse rising edge
+    if (Options::SilentAim::HitboxOnFire && targetPart.address != 0)
+    {
+        static bool prevMouseDown = false;
+        static uintptr_t inflatedPrimitive = 0;
+        static Vectors::Vector3 origSize{};
+        static int restoreFrames = 0;
+
+        bool mouseDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+
+        if (mouseDown && !prevMouseDown && inflatedPrimitive == 0)
+        {
+            uintptr_t primitiveAddr = Memory->read<uintptr_t>(
+                targetPart.address + Offsets::BasePart::Primitive);
+            if (primitiveAddr)
+            {
+                origSize = Memory->read<Vectors::Vector3>(primitiveAddr + Offsets::BasePart::Size);
+                float m = Options::SilentAim::HitboxMult;
+                Vectors::Vector3 inflated{ origSize.x * m, origSize.y * m, origSize.z * m };
+                Memory->write<Vectors::Vector3>(primitiveAddr + Offsets::BasePart::Size, inflated);
+                inflatedPrimitive = primitiveAddr;
+                restoreFrames = Options::SilentAim::HitboxFrames;
+            }
+        }
+        prevMouseDown = mouseDown;
+
+        if (restoreFrames > 0)
+        {
+            restoreFrames--;
+            if (restoreFrames == 0 && inflatedPrimitive)
+            {
+                Memory->write<Vectors::Vector3>(inflatedPrimitive + Offsets::BasePart::Size, origSize);
+                inflatedPrimitive = 0;
+            }
+        }
+    }
+}
