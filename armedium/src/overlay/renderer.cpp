@@ -325,49 +325,42 @@ void ShowImgui()
             ImGui::SetNextWindowSize(gs);
             ImGui::SetNextWindowBgAlpha(menuAlpha);
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, menuAlpha);
+            ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - gs.x) * 0.5f, (io.DisplaySize.y - gs.y) * 0.5f), ImGuiCond_Once);
             ImGui::Begin("##GUI", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground);
             {
                 s = ImVec2(ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2, ImGui::GetWindowSize().y - ImGui::GetStyle().WindowPadding.y * 2);
                 p = ImVec2(ImGui::GetWindowPos().x + ImGui::GetStyle().WindowPadding.x, ImGui::GetWindowPos().y + ImGui::GetStyle().WindowPadding.y);
                 auto draw = ImGui::GetWindowDrawList();
 
-                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y - 0), ImColor(8, 8, 8, 255), 4.0f); // bg
-                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), ImColor(27, 27, 27, 255), 4.5f); // outline
-                draw->AddRect(ImVec2(p.x - -10, p.y + 35.3), ImVec2(p.x + s.x - 480, p.y + s.y - 36.85), ImColor(26, 26, 26, 255)); // subtabs outline
+                // Main background
+                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y), ImColor(10, 10, 10, 255), 6.0f);
+                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), ImColor(28, 28, 28, 255), 6.0f);
 
-                draw->AddLine(ImVec2(p.x, p.y + s.y - 27), ImVec2(p.x + s.x, p.y + s.y - 27), ImColor(27, 27, 27, 255)); // top separator
-                draw->AddLine(ImVec2(p.x, p.y + 25), ImVec2(p.x + s.x, p.y + 25), ImColor(27, 27, 27, 255)); // tab separator
+                // Header accent line
+                draw->AddRectFilled(ImVec2(p.x + 6, p.y + 24), ImVec2(p.x + s.x - 6, p.y + 25), ImColor(35, 35, 35, 255));
 
-                int fade_line_count = 60;
-                float fade_stop = s.x;
-                float center_point = fade_stop / 2.0f;
-
-                for (int i = 0; i < fade_line_count; i++)
-                {
-                    float alpha = 1.0f - (i * (1.0f / fade_line_count));
-                    ImVec2 start_right = ImVec2(p.x + fade_stop - i * (center_point / fade_line_count), p.y + 25);
-                    ImVec2 end_right = ImVec2(p.x + fade_stop - (i + 1) * (center_point / fade_line_count), p.y + 25);
-                    ImColor fade_color(main_color.x, main_color.y, main_color.z, alpha);
-                    draw->AddLine(start_right, end_right, fade_color);
-                }
+                // Footer line
+                draw->AddLine(ImVec2(p.x + 6, p.y + s.y - 26), ImVec2(p.x + s.x - 6, p.y + s.y - 26), ImColor(28, 28, 28, 255));
 
                 ImGui::PushFont(font);
-                draw->AddText(ImVec2(p.x + 9.5, p.y + 7), ImColor(main_color), "Armedium");
-                draw->AddText(ImVec2(p.x + 9.5, p.y + 384), ImColor(255, 255, 255, 100), "Build:");
-                draw->AddText(ImVec2(p.x + 41, p.y + 384), ImColor(main_color), ("Beta"));
 
-                const char* creditText = "Made by Zaka | s/o Claude";
-                ImVec2 creditSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, creditText);
-                float creditX = p.x + (s.x - creditSize.x) / 2.0f;
-                draw->AddText(ImVec2(creditX, p.y + 402), ImColor(255, 255, 255, 70), creditText);
+                // Title
+                draw->AddText(ImVec2(p.x + 10, p.y + 6), ImColor(main_color), "Armedium");
 
-                // Get Roblox username and display it with main_color at the right edge on same level as Build:Live
-                std::string username = Globals::Roblox::LocalPlayer.Name();
-                ImVec2 usernameSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, username.c_str());
-                draw->AddText(ImVec2(p.x + s.x - usernameSize.x - 10.0f, p.y + 384), ImColor(main_color), username.c_str());
-                 
-                ImGui::SetCursorPosX(112);
-                ImGui::SetCursorPosY(10);
+                // User/build info in footer
+                std::string username = "User";
+                if (Globals::Initialized) {
+                    username = Globals::Roblox::LocalPlayer.Name();
+                }
+                std::string footerLeft = "Armedium v1.0";
+                std::string footerRight = username;
+                draw->AddText(ImVec2(p.x + 10, p.y + s.y - 20), ImColor(100, 100, 100, 200), footerLeft.c_str());
+                ImVec2 frSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, footerRight.c_str());
+                draw->AddText(ImVec2(p.x + s.x - frSize.x - 10, p.y + s.y - 20), ImColor(main_color), footerRight.c_str());
+
+                // Tabs
+                ImGui::SetCursorPosX(100);
+                ImGui::SetCursorPosY(6);
                 ImGui::BeginGroup();
                 if (ImGui::tab("Aim", tab == 0)) tab = 0; ImGui::SameLine();
                 if (ImGui::tab("Visuals", tab == 1)) tab = 1; ImGui::SameLine();

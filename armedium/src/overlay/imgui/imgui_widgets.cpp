@@ -1092,11 +1092,6 @@ bool ImGui::ImageButton(ImTextureID user_texture_id, const ImVec2& size, const I
     return ImageButtonEx(id, user_texture_id, size, uv0, uv1, padding, bg_col, tint_col);
 }
 
-struct tab_anim {
-    float hovered_text_anim;
-    float active_text_anim;
-};
-
 bool ImGui::tab(const char* label, bool selected) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
@@ -1108,10 +1103,8 @@ bool ImGui::tab(const char* label, bool selected) {
     const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
     ImVec2 pos = window->DC.CursorPos;
 
-    const float tab_padding_x = 5.0f; // Reduced horizontal padding
-    const float tab_padding_y = 5.0f;
-    const float rounding_radius = 5.0f;
-    const float rect_bottom_extension = 10.0f; // Extend the rectangle downward by 10 pixels
+    const float tab_padding_x = 12.0f;
+    const float tab_padding_y = 6.0f;
     const ImRect rect(pos, ImVec2(pos.x + label_size.x + tab_padding_x * 2, pos.y + label_size.y + tab_padding_y * 2));
     ImGui::ItemSize(ImVec4(rect.Min.x, rect.Min.y, rect.Max.x + 2.f, rect.Max.y), style.FramePadding.y);
     if (!ImGui::ItemAdd(rect, id))
@@ -1120,110 +1113,51 @@ bool ImGui::tab(const char* label, bool selected) {
     bool hovered, held;
     bool pressed = ImGui::ButtonBehavior(rect, id, &hovered, &held, NULL);
 
-    static std::map<ImGuiID, float> fade_alpha;
-    auto it_alpha = fade_alpha.find(id);
-    if (it_alpha == fade_alpha.end()) {
-        fade_alpha[id] = 0.0f;
-        it_alpha = fade_alpha.find(id);
+    // Hover fade animation
+    static std::map<ImGuiID, float> hover_anim;
+    auto it_hover = hover_anim.find(id);
+    if (it_hover == hover_anim.end()) {
+        hover_anim[id] = 0.0f;
+        it_hover = hover_anim.find(id);
     }
+    float hover_target = (hovered || selected) ? 1.0f : 0.0f;
+    it_hover->second += (hover_target - it_hover->second) * 4.0f * ImGui::GetIO().DeltaTime;
+    it_hover->second = ImClamp(it_hover->second, 0.0f, 1.0f);
 
-    // Update fade effect based on tab selection
-    const float fade_speed = 3.0f;  // Speed of the fade effect
-    if (selected) {
-        it_alpha->second += fade_speed * ImGui::GetIO().DeltaTime;
-        if (it_alpha->second > 1.0f) it_alpha->second = 1.0f;
-    }
-    else {
-        it_alpha->second -= fade_speed * ImGui::GetIO().DeltaTime;
-        if (it_alpha->second < 0.0f) it_alpha->second = 0.0f;
-    }
-
-    // Calculate current alpha for the fade effect
-    int current_alpha = static_cast<int>(ImLerp(0.0f, 255.0f, it_alpha->second));
-
-    // Animation state for text color
+    // Text color animation
     static std::map<ImGuiID, ImColor> color_anim;
     ImColor& current_color = color_anim[id];
-    ImColor target_color = ImColor(105, 105, 105, 255); // Default color for non-selected tabs
-
-    if (selected) {
-        // Use main_color from utils.h for selected tabs
-        target_color = ImColor(
-            static_cast<int>(main_color.x * 255.0f),
-            static_cast<int>(main_color.y * 255.0f),
-            static_cast<int>(main_color.z * 255.0f),
-            255
-        );
-    }
-
-    // Interpolate color towards the target
-    float speed = 2.5f * ImGui::GetIO().DeltaTime;
+    ImVec4 target_col = (selected || hovered)
+        ? ImVec4(main_color.x, main_color.y, main_color.z, 1.0f)
+        : ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+    float cspeed = 3.0f * ImGui::GetIO().DeltaTime;
     current_color = ImColor(
-        ImLerp(current_color.Value.x * 255.0f, target_color.Value.x * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.y * 255.0f, target_color.Value.y * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.z * 255.0f, target_color.Value.z * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.w * 255.0f, target_color.Value.w * 255.0f, speed) / 255.0f
+        ImLerp(current_color.Value.x, target_col.x, cspeed),
+        ImLerp(current_color.Value.y, target_col.y, cspeed),
+        ImLerp(current_color.Value.z, target_col.z, cspeed),
+        ImLerp(current_color.Value.w, target_col.w, cspeed)
     );
 
-    // Calculate text position with padding
     ImVec2 text_pos = ImVec2(rect.Min.x + tab_padding_x, rect.Min.y + tab_padding_y);
-
-    // Only render the "box" and background when the tab is selected (active)
-    if (selected || current_alpha > 0) {
-        // Draw the background rectangle, extended downward and without rounding
-        ImVec2 rect_filled_max = ImVec2(rect.Max.x, rect.Max.y + rect_bottom_extension);
-        window->DrawList->AddRectFilled(rect.Min, rect_filled_max, ImColor(8, 8, 8, current_alpha));
-
-        if (selected || current_alpha > 0) {
-            // Define colors with the applied fade alpha
-            ImColor line_color = ImColor(27, 27, 27, current_alpha); // Left and right line color with fade
-            
-            // Use main_color for the top line
-            ImColor top_line_color = ImColor(
-                static_cast<int>(main_color.x * 255.0f),
-                static_cast<int>(main_color.y * 255.0f),
-                static_cast<int>(main_color.z * 255.0f),
-                current_alpha
-            );
-
-            // Draw the left line with rounding
-            window->DrawList->AddLine(ImVec2(rect.Min.x, rect.Max.y), ImVec2(rect.Min.x, rect.Min.y + rounding_radius), line_color, 1.0f); // Thinner line
-            window->DrawList->AddBezierCurve(ImVec2(rect.Min.x, rect.Min.y + rounding_radius),
-                ImVec2(rect.Min.x, rect.Min.y),
-                ImVec2(rect.Min.x + rounding_radius, rect.Min.y),
-                ImVec2(rect.Min.x + rounding_radius, rect.Min.y), line_color, 1.0f); // Thinner curve
-
-            // Draw the right line with rounding
-            window->DrawList->AddLine(ImVec2(rect.Max.x, rect.Max.y), ImVec2(rect.Max.x, rect.Min.y + rounding_radius), line_color, 1.0f); // Thinner line
-            window->DrawList->AddBezierCurve(ImVec2(rect.Max.x, rect.Min.y + rounding_radius),
-                ImVec2(rect.Max.x, rect.Min.y),
-                ImVec2(rect.Max.x - rounding_radius, rect.Min.y),
-                ImVec2(rect.Max.x - rounding_radius, rect.Min.y), line_color, 1.0f); // Thinner curve
-
-            // Draw the flat pink line on top
-            window->DrawList->AddLine(ImVec2(rect.Min.x + rounding_radius, rect.Min.y), ImVec2(rect.Max.x - rounding_radius, rect.Min.y), top_line_color, 1.0f); // Straight top line
-
-            // Draw the left curved pink segment
-            window->DrawList->AddBezierCurve(ImVec2(rect.Min.x, rect.Min.y + rounding_radius),
-                ImVec2(rect.Min.x, rect.Min.y),
-                ImVec2(rect.Min.x + rounding_radius, rect.Min.y),
-                ImVec2(rect.Min.x + rounding_radius, rect.Min.y), top_line_color, 1.0f); // Left curve
-
-            // Draw the right curved pink segment
-            window->DrawList->AddBezierCurve(ImVec2(rect.Max.x, rect.Min.y + rounding_radius),
-                ImVec2(rect.Max.x, rect.Min.y),
-                ImVec2(rect.Max.x - rounding_radius, rect.Min.y),
-                ImVec2(rect.Max.x - rounding_radius, rect.Min.y), top_line_color, 1.0f); // Right curve
-        }
-    }
-
-    // Draw the text with the animated color
     window->DrawList->AddText(text_pos, current_color, label);
+
+    // Bottom accent line on selected tab
+    if (it_hover->second > 0.01f) {
+        ImColor line_col = ImColor(
+            main_color.x, main_color.y, main_color.z, it_hover->second);
+        float line_w = label_size.x * it_hover->second;
+        float line_x = rect.Min.x + tab_padding_x + (label_size.x - line_w) * 0.5f;
+        float line_y = rect.Max.y + 2.0f;
+        window->DrawList->AddRectFilled(
+            ImVec2(line_x, line_y),
+            ImVec2(line_x + line_w, line_y + 2.0f),
+            line_col, 1.0f);
+    }
 
     return pressed;
 }
 
-bool ImGui::subtab(const char* label, bool selected) { // subtab color
+bool ImGui::subtab(const char* label, bool selected) {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if (window->SkipItems)
         return false;
@@ -1235,8 +1169,8 @@ bool ImGui::subtab(const char* label, bool selected) { // subtab color
     ImVec2 pos = window->DC.CursorPos;
 
     const float tab_padding_x = 10.0f;
-    const float tab_padding_y = 4.5f;
-    const float text_padding_left = 10.0f; // Padding from the left for the text
+    const float tab_padding_y = 5.0f;
+    const float text_padding_left = 14.0f;
     const ImRect rect(pos, ImVec2(pos.x + label_size.x + tab_padding_x * 2, pos.y + label_size.y + tab_padding_y * 2));
     ImGui::ItemSize(ImVec4(rect.Min.x, rect.Min.y, rect.Max.x + 2.f, rect.Max.y), style.FramePadding.y);
     if (!ImGui::ItemAdd(rect, id))
@@ -1245,87 +1179,46 @@ bool ImGui::subtab(const char* label, bool selected) { // subtab color
     bool hovered, held;
     bool pressed = ImGui::ButtonBehavior(rect, id, &hovered, &held, NULL);
 
-    static std::map<ImGuiID, tab_anim> anim;
-    auto it_anim = anim.find(id);
-    if (it_anim == anim.end()) {
-        anim.insert(std::make_pair(id, tab_anim{ 0, 0 }));
-        it_anim = anim.find(id);
+    // Hover/active animation
+    static std::map<ImGuiID, float> anim;
+    auto it = anim.find(id);
+    if (it == anim.end()) {
+        anim[id] = 0.0f;
+        it = anim.find(id);
     }
+    float target = (selected || hovered) ? 1.0f : 0.0f;
+    it->second += (target - it->second) * 5.0f * ImGui::GetIO().DeltaTime;
+    it->second = ImClamp(it->second, 0.0f, 1.0f);
 
-    // Update hover animation
-    if (hovered)
-        it_anim->second.hovered_text_anim += 8 * (1.f - ImGui::GetIO().DeltaTime);
-    else
-        it_anim->second.hovered_text_anim -= 8 * (1.f - ImGui::GetIO().DeltaTime);
-
-    // Update active animation
-    if (selected) {
-        it_anim->second.active_text_anim += 16 * (1.f - ImGui::GetIO().DeltaTime);
-    }
-    else {
-        it_anim->second.active_text_anim -= 16 * (1.f - ImGui::GetIO().DeltaTime);
-    }
-
-    // Calculate text position with left padding
-    ImVec2 text_pos = ImVec2(rect.Min.x + text_padding_left, rect.Min.y + tab_padding_y);
-
-    // Animation state for text color
+    // Text color animation
     static std::map<ImGuiID, ImColor> color_anim;
     ImColor& current_color = color_anim[id];
-    ImColor target_color = ImColor(105, 105, 105, 255); // Default color for non-selected tabs
-
-    if (selected) {
-        // Use main_color from utils.h for selected subtabs
-        target_color = ImColor(
-            static_cast<int>(main_color.x * 255.0f),
-            static_cast<int>(main_color.y * 255.0f),
-            static_cast<int>(main_color.z * 255.0f),
-            255
-        );
-    }
-
-    // Interpolate color towards the target
-    float speed = 3.5f * ImGui::GetIO().DeltaTime;
+    ImVec4 target_col = selected
+        ? ImVec4(main_color.x, main_color.y, main_color.z, 1.0f)
+        : (hovered ? ImVec4(0.8f, 0.8f, 0.8f, 1.0f) : ImVec4(0.45f, 0.45f, 0.45f, 1.0f));
+    float cspeed = 4.0f * ImGui::GetIO().DeltaTime;
     current_color = ImColor(
-        ImLerp(current_color.Value.x * 255.0f, target_color.Value.x * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.y * 255.0f, target_color.Value.y * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.z * 255.0f, target_color.Value.z * 255.0f, speed) / 255.0f,
-        ImLerp(current_color.Value.w * 255.0f, target_color.Value.w * 255.0f, speed) / 255.0f
+        ImLerp(current_color.Value.x, target_col.x, cspeed),
+        ImLerp(current_color.Value.y, target_col.y, cspeed),
+        ImLerp(current_color.Value.z, target_col.z, cspeed),
+        ImLerp(current_color.Value.w, target_col.w, cspeed)
     );
 
-    // Animation state for line color
-    static std::map<ImGuiID, float> line_alpha_anim;
-    float& current_line_alpha = line_alpha_anim[id];
-    float target_line_alpha = selected ? 255.0f : 100.0f;
-
-    // Interpolate alpha towards the target
-    current_line_alpha = ImLerp(current_line_alpha, target_line_alpha, speed);
-
-    // Use main_color for the line
-    ImColor line_color = ImColor(
-        static_cast<int>(main_color.x * 255.0f),
-        static_cast<int>(main_color.y * 255.0f),
-        static_cast<int>(main_color.z * 255.0f),
-        static_cast<int>(current_line_alpha)
-    );
-
-    // Draw pink vertical line at the left start
-    ImVec2 line_start = ImVec2(rect.Min.x, rect.Min.y);
-    ImVec2 line_end = ImVec2(rect.Min.x, rect.Max.y);
-    window->DrawList->AddLine(line_start, line_end, line_color, 1.0f);  // Thinner line with thickness of 1.0f
-
-    // Draw multiple white lines with decreasing alphas
-    const int num_white_lines = 75; // Increased number of lines for a smoother gradient
-    for (int i = 0; i < num_white_lines; ++i) {
-        float alpha = 12 - (i * (12.0f / num_white_lines));  // Decreasing alpha
-        ImColor white_line_color = ImColor(255, 255, 255, static_cast<int>(alpha));
-        window->DrawList->AddLine(ImVec2(rect.Min.x + 1 + i, rect.Min.y), ImVec2(rect.Min.x + 1 + i, rect.Max.y), white_line_color, 1.0f);
-    }
-
-    // Draw the text
+    ImVec2 text_pos = ImVec2(rect.Min.x + text_padding_left, rect.Min.y + tab_padding_y);
     window->DrawList->AddText(text_pos, current_color, label);
 
-    // Adjust cursor position for the next subtab to be underneath
+    // Active/hover accent bar on the left
+    if (it->second > 0.01f) {
+        float bar_w = 2.5f;
+        float inset = 2.0f;
+        ImColor bar_col = ImColor(
+            main_color.x, main_color.y, main_color.z, it->second);
+        window->DrawList->AddRectFilled(
+            ImVec2(rect.Min.x, rect.Min.y + inset),
+            ImVec2(rect.Min.x + bar_w, rect.Max.y - inset),
+            bar_col, 1.0f);
+    }
+
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + rect.GetHeight() + style.ItemSpacing.y);
 
     return pressed;

@@ -5082,38 +5082,15 @@ bool ImGui::beginchildex(const char* name, ImGuiID id, const ImVec2& size_arg, b
     ImRect clip_rect(pos, pos + render_size);
     draw_list->PushClipRect(clip_rect.Min, clip_rect.Max);
 
-    // Draw top background
-    draw_list->AddRectFilled(pos + ImVec2(0, border ? 20 : 5), pos + ImVec2(render_size.x, 25), ImColor(11, 11, 11), 0);
-
-    // Draw gradient effect
-    int fade_line_count = 150;
-    float fade_stop = render_size.x;
-    float gradient_length = fade_stop / 4.0f;
-    for (int i = 0; i < fade_line_count; i++)
-    {
-        float alpha = 0.075f - (i * (0.075f / fade_line_count));
-        ImVec2 start_left = pos + ImVec2(i * (gradient_length / fade_line_count), 25);
-        ImVec2 end_left = pos + ImVec2((i + 1) * (gradient_length / fade_line_count), 25);
-        ImVec2 start_right = pos + ImVec2(fade_stop - i * (gradient_length / fade_line_count), 25);
-        ImVec2 end_right = pos + ImVec2(fade_stop - (i + 1) * (gradient_length / fade_line_count), 25);
-
-        ImColor fade_color(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f, alpha);
-        draw_list->AddLine(start_left, end_left, fade_color);
-        draw_list->AddLine(start_right, end_right, fade_color);
-    }
-
-    // Draw outline
-    const float opacity = 0.50f;
-    const ImU32 color = ImColor(255, 255, 255, static_cast<int>(opacity * 23));
-    draw_list->AddRect(
-        pos + ImVec2(0, border ? 25 : 5),
-        pos + render_size,
-        color,
-        0
-    );
-
     // Draw title
-    draw_list->AddText(pos + ImVec2(5, border ? 22 : 7), ImColor(255, 255, 255, 100), name);
+    draw_list->AddText(pos + ImVec2(6, 6), ImColor(140, 140, 140, 200), name);
+
+    // Draw separator line under title area
+    float sep_y = pos.y + 20.0f;
+    draw_list->AddRectFilled(
+        ImVec2(pos.x + 6, sep_y),
+        ImVec2(pos.x + render_size.x - 6, sep_y + 1.0f),
+        ImColor(40, 40, 40, 255));
 
     // Restore clipping
     draw_list->PopClipRect();
