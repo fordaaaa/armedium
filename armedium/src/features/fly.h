@@ -62,6 +62,8 @@ void FlyLoop()
             if (Options::Fly::Toggled)
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
+                Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
                 wasToggled = true;
 
                 float speed = Options::Fly::Speed;
@@ -87,6 +89,7 @@ void FlyLoop()
             else if (wasToggled)
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
+                Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
                 wasToggled = false;
             }
         }

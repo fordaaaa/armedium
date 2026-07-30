@@ -479,9 +479,6 @@ void ShowImgui()
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100)
                 );
 
-                ImGui::SetCursorPosY(34);
-                ImGui::SetCursorPosX(contentX - p.x);
-
                 // ============ TAB CONTENT ============
                 static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
                 static const char* visSubtabNames[] = { "ESP", "Colours", "Radar" };
@@ -541,6 +538,8 @@ void ShowImgui()
 
                 if (tab == 0)
                 {
+                    ImGui::SetCursorPosY(34);
+                    ImGui::SetCursorPosX(contentX - p.x);
                     renderSubtabBar(aimSubtabNames, 3);
                     ImGui::Dummy(ImVec2(0, 6));
 
@@ -818,6 +817,8 @@ void ShowImgui()
                 }
                 else if (tab == 1)
                 {
+                    ImGui::SetCursorPosY(34);
+                    ImGui::SetCursorPosX(contentX - p.x);
                     renderSubtabBar(visSubtabNames, 3);
                     ImGui::Dummy(ImVec2(0, 6));
 
@@ -923,6 +924,8 @@ void ShowImgui()
                 }
                 else if (tab == 2)
                 {
+                    ImGui::SetCursorPosY(34);
+                    ImGui::SetCursorPosX(contentX - p.x);
                     renderSubtabBar(miscSubtabNames, 5);
                     ImGui::Dummy(ImVec2(0, 6));
 

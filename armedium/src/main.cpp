@@ -104,13 +104,37 @@ int main()
 
     log("Waiting for game to load...", 0);
 
-    auto fakeDataModel = Memory->read<uintptr_t>(Memory->getBaseAddress() + Offsets::FakeDataModel::Pointer);
-    auto dataModel = RobloxInstance(Memory->read<uintptr_t>(fakeDataModel + Offsets::FakeDataModel::RealDataModel));
+    RobloxInstance dataModel(0);
+    int gameLoadRetries = 0;
 
-    while (dataModel.Name() != "Ugc")
+    while (true)
     {
-        fakeDataModel = Memory->read<uintptr_t>(Memory->getBaseAddress() + Offsets::FakeDataModel::Pointer);
-        dataModel = RobloxInstance(Memory->read<uintptr_t>(fakeDataModel + Offsets::FakeDataModel::RealDataModel));
+        auto fakeDataModel = Memory->read<uintptr_t>(Memory->getBaseAddress() + Offsets::FakeDataModel::Pointer);
+        if (fakeDataModel != 0)
+        {
+            auto dataModelAddr = Memory->read<uintptr_t>(fakeDataModel + Offsets::FakeDataModel::RealDataModel);
+            if (dataModelAddr != 0)
+            {
+                dataModel = RobloxInstance(dataModelAddr);
+                auto name = dataModel.Name();
+
+                // Check by name (Ugc = in-game)
+                if (name == "Ugc")
+                    break;
+
+                // Fallback: if name is not empty and not LuaApp, and PlaceId is valid
+                int placeId = Memory->read<int>(dataModelAddr + Offsets::DataModel::PlaceId);
+                if (!name.empty() && name != "LuaApp" && placeId > 0)
+                    break;
+            }
+        }
+
+        gameLoadRetries++;
+        if (gameLoadRetries > 300)
+        {
+            log("Game load timeout, continuing anyway...", 2);
+            break;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
@@ -118,21 +142,27 @@ int main()
 
     auto visualEngine = Memory->read<uintptr_t>(Memory->getBaseAddress() + Offsets::VisualEngine::Pointer);
 
+    int veRetries = 0;
     while (visualEngine == 0)
     {
         visualEngine = Memory->read<uintptr_t>(Memory->getBaseAddress() + Offsets::VisualEngine::Pointer);
+        veRetries++;
+        if (veRetries > 300) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 
     Globals::Roblox::VisualEngine = visualEngine;
 
-    Globals::Roblox::Workspace = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Workspace");
-    Globals::Roblox::Players = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Players");
-    Globals::Roblox::Camera = Globals::Roblox::Workspace.FindFirstChildWhichIsA("Camera");
-
-    Globals::Roblox::LocalPlayer = RobloxInstance(Memory->read<uintptr_t>(Globals::Roblox::Players.address + Offsets::Player::LocalPlayer));
-
-    Globals::Roblox::lastPlaceID = Memory->read<int>(Globals::Roblox::DataModel.address + Offsets::DataModel::PlaceId);;
+    if (Globals::Roblox::DataModel.address)
+    {
+        Globals::Roblox::Workspace = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Workspace");
+        Globals::Roblox::Players = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Players");
+        if (Globals::Roblox::Workspace.address)
+            Globals::Roblox::Camera = Globals::Roblox::Workspace.FindFirstChildWhichIsA("Camera");
+        if (Globals::Roblox::Players.address)
+            Globals::Roblox::LocalPlayer = RobloxInstance(Memory->read<uintptr_t>(Globals::Roblox::Players.address + Offsets::Player::LocalPlayer));
+        Globals::Roblox::lastPlaceID = Memory->read<int>(Globals::Roblox::DataModel.address + Offsets::DataModel::PlaceId);
+    }
 
     log(std::string("DataModel -> 0x" + toHexString(std::to_string(Globals::Roblox::DataModel.address), false, true)), 1);
     log(std::string("VisualEngine -> 0x" + toHexString(std::to_string(Globals::Roblox::VisualEngine), false, true)), 1);
@@ -141,7 +171,8 @@ int main()
     log(std::string("Players -> 0x" + toHexString(std::to_string(Globals::Roblox::Players.address), false, true)), 1);
     log(std::string("Camera -> 0x" + toHexString(std::to_string(Globals::Roblox::Camera.address), false, true)), 1);
 
-    log(std::string("Logged in as " + Globals::Roblox::LocalPlayer.Name()), 1);
+    if (Globals::Roblox::LocalPlayer.address)
+        log(std::string("Logged in as " + Globals::Roblox::LocalPlayer.Name()), 1);
 
     Globals::Initialized = true;
 
