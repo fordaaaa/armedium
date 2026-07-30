@@ -164,24 +164,24 @@ public:
 
 	inline float GetJumpPower()
 	{
-		return std::round(Memory->read<float>(address + Offsets::Humanoid::JumpPower));
+		return (float)std::round(Memory->read<float>(address + Offsets::Humanoid::JumpPower));
 	}
 
 	inline float GetFOV()
 	{
 		auto radiantsFOV = Memory->read<float>(address + Offsets::Camera::FieldOfView);
 
-		auto degreesFOV = radiantsFOV * 180 / 3.1415926535;
+		auto degreesFOV = radiantsFOV * 180.0f / 3.1415926535f;
 
-		return std::round(degreesFOV);
+		return (float)std::round(degreesFOV);
 
 	}
 
 	inline void SetFOV(float value)
 	{
-		value = std::round(value);
+		value = (float)std::round(value);
 
-		auto radiantsValue = value * 3.1415926535 / 180;
+		auto radiantsValue = value * 3.1415926535f / 180.0f;
 
 		Memory->write<float>(address + Offsets::Camera::FieldOfView, radiantsValue);
 	}

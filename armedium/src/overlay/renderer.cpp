@@ -635,9 +635,9 @@ void ShowImgui()
                                 {
                                     if (draggedPt == -1)
                                     {
-                                        float d1 = sqrt(pow(mp.x - cp1Pos.x, 2) + pow(mp.y - cp1Pos.y, 2));
+                                        float d1 = sqrtf((mp.x - cp1Pos.x) * (mp.x - cp1Pos.x) + (mp.y - cp1Pos.y) * (mp.y - cp1Pos.y));
                                         if (d1 <= cpr + 3) draggedPt = 0;
-                                        float d2 = sqrt(pow(mp.x - cp2Pos.x, 2) + pow(mp.y - cp2Pos.y, 2));
+                                        float d2 = sqrtf((mp.x - cp2Pos.x) * (mp.x - cp2Pos.x) + (mp.y - cp2Pos.y) * (mp.y - cp2Pos.y));
                                         if (d2 <= cpr + 3) draggedPt = 1;
                                     }
                                     if (draggedPt == 0)
@@ -1022,7 +1022,7 @@ void ShowImgui()
                                     {
                                         if (i == Options::Teleport::SelectedPlayer)
                                             displayIdx = (int)tpNames.size();
-                                        tpNames.push_back(players[i].Name());
+                                        tpNames.push_back(players[i].Name);
                                         tpNameToPlayer.push_back(i);
                                     }
                                 }
@@ -1402,7 +1402,7 @@ ImU32 InterpolateColor(ImU32 colA, ImU32 colB, float t)
     ImU8 alpha = (ImU8)(ImU32((a >> IM_COL32_A_SHIFT) & 0xFF) * (1.0f - t) + ImU32((b >> IM_COL32_A_SHIFT) & 0xFF) * t);
     return IM_COL32(r, g, bch, alpha);
 }
-float GetPulseValue(float speed, float intensity) { return 0.5f + 0.5f * sinf(speed * ImGui::GetTime()) * intensity; }
+float GetPulseValue(float speed, float intensity) { return 0.5f + 0.5f * sinf(speed * (float)ImGui::GetTime()) * intensity; }
 void DrawGradientRect(ImDrawList* drawList, const ImVec2& p_min, const ImVec2& p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_btm_right, ImU32 col_btm_left) {}
 void DrawHorizontalGradient(ImDrawList* drawList, const ImVec2& p_min, const ImVec2& p_max, ImU32 col_left, ImU32 col_right) {}
 void DrawVerticalGradient(ImDrawList* drawList, const ImVec2& p_min, const ImVec2& p_max, ImU32 col_top, ImU32 col_bottom) {}
