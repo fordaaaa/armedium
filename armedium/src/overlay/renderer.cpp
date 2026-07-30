@@ -401,26 +401,21 @@ void ShowImgui()
                 draw->AddRectFilled(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(18, 18, 22, 255), 8.0f);
                 draw->AddRect(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(28, 28, 33, 255), 8.0f);
 
-                // Sidebar accent top glow
+                // Sidebar accent top
                 draw->AddRectFilledMultiColor(
-                    ImVec2(p.x + 4, p.y + 4),
-                    ImVec2(p.x + sbWidth + 4, p.y + 32),
-                    IM_COL32(main_color.x * 15, main_color.y * 15, main_color.z * 15, 60),
-                    IM_COL32(main_color.x * 15, main_color.y * 15, main_color.z * 15, 60),
+                    ImVec2(p.x + 6, p.y + 4),
+                    ImVec2(p.x + sbWidth + 2, p.y + 26),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 10),
                     IM_COL32(18, 18, 22, 0),
                     IM_COL32(18, 18, 22, 0)
                 );
 
-                // Title in sidebar
-                draw->AddText(ImVec2(p.x + sbWidth / 2 - ImGui::CalcTextSize("AZ").x / 2 + 4, p.y + 10), IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 200), "AZ");
-                draw->AddLine(ImVec2(p.x + 10, p.y + 32), ImVec2(p.x + sbWidth - 2, p.y + 32), IM_COL32(40, 40, 45, 255));
-
                 // Sidebar tab buttons
-                const char* sbLabels[] = { "Aim", "Vis", "Misc" };
-                const char* sbIcons[] = { "A", "V", "M" };
-                float btnSize = 56.0f;
-                float btnStartY = 48.0f;
-                float btnGap = 8.0f;
+                const char* sbLabels[] = { "Aim", "Visuals", "Misc" };
+                float btnSize = 50.0f;
+                float btnStartY = 36.0f;
+                float btnGap = 6.0f;
 
                 for (int i = 0; i < 3; i++)
                 {
@@ -443,28 +438,15 @@ void ShowImgui()
                             IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255),
                             2.0f
                         );
-                        // Subtle accent border
-                        draw->AddRect(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize),
-                            IM_COL32(main_color.x * 40, main_color.y * 40, main_color.z * 40, 80), 6.0f);
                     }
 
-                    // Icon text
-                    ImVec2 iconSize = ImGui::CalcTextSize(sbIcons[i]);
-                    draw->AddText(
-                        ImVec2(btnPos.x + (btnSize - iconSize.x) / 2, btnPos.y + 10),
-                        tab == i
-                            ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255)
-                            : (hovered ? IM_COL32(200, 200, 200, 255) : IM_COL32(120, 120, 130, 255)),
-                        sbIcons[i]
-                    );
-
-                    // Label under icon
+                    // Label centered in button
                     ImVec2 labelSize = ImGui::CalcTextSize(sbLabels[i]);
                     draw->AddText(
-                        ImVec2(btnPos.x + (btnSize - labelSize.x) / 2, btnPos.y + 30),
+                        ImVec2(btnPos.x + (btnSize - labelSize.x) / 2, btnPos.y + (btnSize - 13) / 2),
                         tab == i
-                            ? IM_COL32(220, 220, 225, 255)
-                            : (hovered ? IM_COL32(180, 180, 185, 255) : IM_COL32(100, 100, 110, 255)),
+                            ? IM_COL32(255, 255, 255, 255)
+                            : (hovered ? IM_COL32(200, 200, 200, 255) : IM_COL32(120, 120, 130, 255)),
                         sbLabels[i]
                     );
 
@@ -1124,7 +1106,7 @@ void ShowImgui()
                             if (ImGui::Button("Set Webhook", ImVec2(cw - 24, 25)))
                                 Options::Misc::WebhookURL = webhookBuf;
                             if (ImGui::Button("Test Webhook", ImVec2(cw - 24, 25)))
-                                SendWebhookAsync("Armedium webhook test");
+                                SendWebhookAsync("Webhook test");
                             ImGui::PopStyleColor(1);
                         }
                         endStyledChild();
@@ -1165,15 +1147,9 @@ void ShowImgui()
                 float footerY = p.y + s.y - 22;
                 draw->AddLine(ImVec2(p.x + sbWidth + 12, footerY - 4), ImVec2(p.x + s.x - 6, footerY - 4), IM_COL32(28, 28, 33, 255));
 
-                std::string username = "User";
-                if (Globals::Initialized) {
-                    username = Globals::Roblox::LocalPlayer.Name();
-                }
-                std::string footerLeft = "Armedium v1.0";
-                std::string footerRight = username;
-                draw->AddText(ImVec2(p.x + sbWidth + 14, footerY + 2), IM_COL32(100, 100, 110, 200), footerLeft.c_str());
-                ImVec2 frSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, footerRight.c_str());
-                draw->AddText(ImVec2(p.x + s.x - frSize.x - 10, footerY + 2), IM_COL32(main_color.x * 200, main_color.y * 200, main_color.z * 200, 180), footerRight.c_str());
+                std::string fpsRight = std::to_string(static_cast<int>(io.Framerate)) + " FPS";
+                ImVec2 fpsSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, fpsRight.c_str());
+                draw->AddText(ImVec2(p.x + s.x - fpsSize.x - 10, footerY + 2), IM_COL32(100, 100, 110, 200), fpsRight.c_str());
 
                 ImGui::PopFont();
             }
@@ -1204,11 +1180,11 @@ void ShowImgui()
             // Render radar
             RenderRadar(ImGui::GetBackgroundDrawList());
 
-            std::string str = "Armedium | " + std::to_string(static_cast<int>(io.Framerate)) + " FPS";
+            std::string str = std::to_string(static_cast<int>(io.Framerate)) + " FPS";
             ImVec2 textSize = ImGui::CalcTextSize(str.c_str());
             ImVec2 pos = ImVec2(io.DisplaySize.x - textSize.x - 10.0f, 10.0f);
             ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-            drawList->AddText(pos, IM_COL32(255, 255, 255, 255), str.c_str());
+            drawList->AddText(pos, IM_COL32(255, 255, 255, 200), str.c_str());
         }
 
         static float lastAutoSave = 0;

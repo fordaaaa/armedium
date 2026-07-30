@@ -161,7 +161,7 @@ int main()
     std::thread(FlyLoop).detach();
     std::thread(SpeedLoop).detach();
 
-    SendWebhookAsync("Armedium started", 1);
+    SendWebhookAsync("Started", 1);
 
     std::cin.get();
 
