@@ -12,12 +12,7 @@ void FlyLoop()
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-        if (Options::Fly::FlyKey != 0 && Options::Fly::HoldKey)
-        {
-            bool isPressed = (GetAsyncKeyState(Options::Fly::FlyKey) & 0x8000) != 0;
-            Options::Fly::Toggled = isPressed;
-        }
-        else if (Options::Fly::FlyKey != 0)
+        if (Options::Fly::FlyKey != 0)
         {
             static bool wasKeyPressed = false;
             bool isPressed = (GetAsyncKeyState(Options::Fly::FlyKey) & 0x8000) != 0;
@@ -56,7 +51,6 @@ void FlyLoop()
             auto camCFrame = camera.CFrame();
             Vectors::Vector3 forward(-camCFrame.r02, -camCFrame.r12, -camCFrame.r22);
             Vectors::Vector3 right(camCFrame.r00, camCFrame.r10, camCFrame.r20);
-            Vectors::Vector3 up(camCFrame.r01, camCFrame.r11, camCFrame.r21);
 
             uintptr_t primitive = Memory->read<uintptr_t>(humanoidRootPart.address + Offsets::BasePart::Primitive);
             if (!primitive) continue;
@@ -65,7 +59,6 @@ void FlyLoop()
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
                 wasToggled = true;
 
                 float speed = Options::Fly::Speed;
@@ -77,14 +70,23 @@ void FlyLoop()
                 if (GetAsyncKeyState('D') & 0x8000) moveDir = moveDir + right;
 
                 if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-                    moveDir = moveDir + up;
+                    moveDir.y += 1.0f;
                 if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
-                    moveDir = moveDir - up;
+                    moveDir.y -= 1.0f;
 
                 float mag = moveDir.Magnitude();
                 Vectors::Vector3 velocity(0, 0, 0);
                 if (mag > 0)
+                {
                     velocity = moveDir * (speed / mag);
+
+                    Vectors::Vector3 angVel(
+                        (right.cross(moveDir.Normalize() * speed)).x * 0.01f,
+                        (forward.cross(moveDir.Normalize() * speed)).y * 0.01f,
+                        (right.cross(moveDir.Normalize() * speed)).z * 0.01f
+                    );
+                    Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
+                }
 
                 Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity, velocity);
             }
@@ -92,6 +94,7 @@ void FlyLoop()
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
                 wasToggled = false;
             }
         }

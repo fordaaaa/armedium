@@ -494,10 +494,11 @@ inline void MouseSendInput(const Vectors::Vector2& targetPos, const POINT& curre
 
 inline void RunAimbot(ImDrawList* drawList)
 {
-    // Check if aimbot is enabled first
     if (!Options::Aimbot::Aimbot)
         return;
 
+    try
+    {
     auto localTeam = Globals::Roblox::LocalPlayer.Team();
     std::string localTeamColor;
     if (localTeam.address != 0)
@@ -526,7 +527,7 @@ inline void RunAimbot(ImDrawList* drawList)
 
     if (Dimensions.x < GetSystemMetrics(SM_CXSCREEN) || Dimensions.y < GetSystemMetrics(SM_CYSCREEN))
     {
-        yAxisCheck = (p.y - Dimensions.y / 2) <= 25; // windowed mode
+        yAxisCheck = (p.y - Dimensions.y / 2) <= 25;
     }
     else
     {
@@ -534,12 +535,12 @@ inline void RunAimbot(ImDrawList* drawList)
     }
 
     if (p.x == Dimensions.x / 2 && yAxisCheck)
-    {                                          //likely in first person
-        CombatType = 0; // FPS
+    {
+        CombatType = 0;
     }
     else
     {
-        CombatType = 1; // TPS
+        CombatType = 1;
     }
 
     ImColor FOVColor = IM_COL32(
@@ -680,6 +681,10 @@ inline void RunAimbot(ImDrawList* drawList)
             }
 
         }
+    }
+    }
+    catch (...)
+    {
     }
 }
 

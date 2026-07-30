@@ -416,25 +416,37 @@ void ShowImgui()
                 p = ImVec2(ImGui::GetWindowPos().x + ImGui::GetStyle().WindowPadding.x, ImGui::GetWindowPos().y + ImGui::GetStyle().WindowPadding.y);
                 auto draw = ImGui::GetWindowDrawList();
 
+                ImU32 bgColor = IM_COL32(13, 13, 16, 250);
+                ImU32 borderColor = IM_COL32(35, 35, 42, 255);
+                ImU32 sbBg = IM_COL32(16, 16, 20, 255);
+                ImU32 sbBorder = IM_COL32(30, 30, 38, 255);
+                ImU32 childBg = IM_COL32(18, 18, 22, 240);
+                ImU32 childBorder = IM_COL32(32, 32, 40, 255);
+                ImColor accentColor = main_color;
+
                 // Main background with rounded corners
-                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y), IM_COL32(12, 12, 14, 245), 10.0f);
-                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), IM_COL32(30, 30, 35, 255), 10.0f);
+                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y), bgColor, 10.0f);
+                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), borderColor, 10.0f);
 
                 // ============ SIDEBAR ============
                 const float sbWidth = 72.0f;
-                draw->AddRectFilled(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(18, 18, 22, 255), 8.0f);
-                draw->AddRect(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(28, 28, 33, 255), 8.0f);
+                draw->AddRectFilled(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), sbBg, 8.0f);
+                draw->AddRect(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), sbBorder, 8.0f);
+
+                ImVec4 mc = main_color;
+                ImU32 accentA = IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 180);
 
                 draw->AddRectFilledMultiColor(
                     ImVec2(p.x + 6, p.y + 4),
                     ImVec2(p.x + sbWidth + 2, p.y + 26),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 10),
-                    IM_COL32(18, 18, 22, 0),
-                    IM_COL32(18, 18, 22, 0)
+                    accentA,
+                    IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 20),
+                    IM_COL32(16, 16, 20, 0),
+                    IM_COL32(16, 16, 20, 0)
                 );
 
-                // Sidebar child for proper ImGui layout
+                draw->AddText(ImVec2(p.x + 12, p.y + 8), IM_COL32(255, 255, 255, 200), "AM");
+
                 ImGui::SetCursorPos(ImVec2(4, 4));
                 ImGui::BeginChild("##sidebar", ImVec2(sbWidth, s.y - 8), false, ImGuiWindowFlags_NoBackground);
                 {
@@ -444,18 +456,23 @@ void ShowImgui()
                     {
                         ImVec2 btnSize(sbWidth - 8, 44);
                         ImGui::SetCursorPosX(4);
-                        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(24, 24, 30, 255));
+                        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(28, 28, 36, 255));
                         if (tab == i)
-                            ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(30, 30, 38, 255));
-                        ImGui::PushStyleColor(ImGuiCol_Text, tab == i ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 255));
+                            ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(35, 35, 45, 255));
+                        ImGui::PushStyleColor(ImGuiCol_Text, tab == i ? IM_COL32(255, 255, 255, 255) : IM_COL32(130, 130, 145, 255));
                         bool clicked = ImGui::Selectable(sbLabels[i], false, ImGuiSelectableFlags_None, btnSize);
                         ImGui::PopStyleColor(2 + (tab == i ? 1 : 0));
+                        ImVec2 rMin = ImGui::GetItemRectMin();
+                        ImVec2 rMax = ImGui::GetItemRectMax();
+                        if (ImGui::IsItemHovered() && tab != i)
+                        {
+                            draw->AddRectFilled(ImVec2(rMin.x, rMin.y + 6), ImVec2(rMin.x + 2, rMax.y - 6),
+                                IM_COL32(80, 80, 100, 80), 1.0f);
+                        }
                         if (tab == i)
                         {
-                            ImVec2 rMin = ImGui::GetItemRectMin();
-                            ImVec2 rMax = ImGui::GetItemRectMax();
                             draw->AddRectFilled(ImVec2(rMin.x, rMin.y + 6), ImVec2(rMin.x + 3, rMax.y - 6),
-                                IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255), 2.0f);
+                                IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 255), 2.0f);
                         }
                         if (clicked && tab != i) { tab = i; tab2 = 0; }
                     }
@@ -463,7 +480,7 @@ void ShowImgui()
                 ImGui::EndChild();
 
                 // Divider
-                draw->AddLine(ImVec2(p.x + sbWidth + 8, p.y + 8), ImVec2(p.x + sbWidth + 8, p.y + s.y - 8), IM_COL32(28, 28, 33, 255));
+                draw->AddLine(ImVec2(p.x + sbWidth + 8, p.y + 10), ImVec2(p.x + sbWidth + 8, p.y + s.y - 10), IM_COL32(30, 30, 38, 255));
 
                 // ============ CONTENT AREA ============
                 float cw = (s.x - (sbWidth + 36)) / 2;
@@ -472,14 +489,13 @@ void ShowImgui()
                 float contentW = s.x - (sbWidth + 28);
                 float contentH = s.y - 44;
 
-                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200),
+                draw->AddText(ImVec2(contentX, contentY), IM_COL32(220, 220, 230, 255),
                     tab == 0 ? "Aimbot" : tab == 1 ? "Visuals" : tab == 2 ? "Movement" : "Miscellaneous");
+                ImU32 accentGradL = IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 120);
+                ImU32 accentGradR = IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 20);
                 draw->AddRectFilledMultiColor(
-                    ImVec2(contentX, contentY + 18), ImVec2(contentX + contentW, contentY + 20),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
-                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100)
+                    ImVec2(contentX, contentY + 20), ImVec2(contentX + contentW * 0.6f, contentY + 22),
+                    accentGradL, accentGradR, accentGradR, accentGradL
                 );
 
                 // Content area child
@@ -488,8 +504,8 @@ void ShowImgui()
                 {
                     auto beginStyledChild = [&](const char* id, ImVec2 size) {
                         ImVec2 cPos = ImGui::GetCursorScreenPos();
-                        draw->AddRectFilled(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(18, 18, 22, 230), 8.0f);
-                        draw->AddRect(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(30, 30, 35, 255), 8.0f);
+                        draw->AddRectFilled(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), childBg, 8.0f);
+                        draw->AddRect(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), childBorder, 8.0f);
                         ImGui::BeginChild(id, size, false, ImGuiWindowFlags_NoBackground);
                     };
                     auto endStyledChild = [&]() {
@@ -499,7 +515,7 @@ void ShowImgui()
                     // ============ TAB CONTENT ============
                     static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
                     static const char* visSubtabNames[] = { "ESP", "Colours" };
-                    static const char* moveSubtabNames[] = { "Fly", "WalkSpeed", "Fling" };
+                    static const char* moveSubtabNames[] = { "Fly", "WalkSpeed", "Fling", "Teleport" };
                     static const char* miscSubtabNames[] = { "Local", "Silent Aim", "Config" };
 
                     auto renderSubtabBar = [&](const char** names, int count) {
@@ -512,26 +528,25 @@ void ShowImgui()
                             ImVec2 subtabPos = ImGui::GetCursorScreenPos();
                             float sbw = textSize.x + 20;
 
-                            ImU32 sbBg = sel ? IM_COL32(30, 30, 38, 255) : IM_COL32(0, 0, 0, 0);
-                            ImU32 sbBorder = sel ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80) : IM_COL32(35, 35, 40, 100);
+                            ImU32 sbBg = sel ? childBg : IM_COL32(0, 0, 0, 0);
+                            ImU32 sbBorder = sel ? IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 100) : IM_COL32(30, 30, 38, 60);
 
-                            draw->AddRectFilled(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBg, 4.0f);
-                            if (sel)
-                                draw->AddRect(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBorder, 4.0f);
+                            draw->AddRectFilled(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 26), sbBg, 4.0f);
+                            draw->AddRect(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 26), sbBorder, 4.0f);
 
-                            ImGui::InvisibleButton(names[i], ImVec2(sbw, 24));
+                            ImGui::InvisibleButton(names[i], ImVec2(sbw, 26));
                             if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
                                 tab2 = i;
 
-                            ImVec2 textPos(subtabPos.x + (sbw - textSize.x) / 2, subtabPos.y + (24 - textSize.y) / 2);
+                            ImVec2 textPos(subtabPos.x + (sbw - textSize.x) / 2, subtabPos.y + (26 - textSize.y) / 2);
                             draw->AddText(textPos,
-                                sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 200),
+                                sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(130, 130, 145, 200),
                                 names[i]);
 
                             ImGui::SameLine(0, 0);
                         }
                         ImGui::EndGroup();
-                        ImGui::Dummy(ImVec2(0, 0));
+                        ImGui::Dummy(ImVec2(0, 6));
                     };
 
                     if (tab == 0)
@@ -577,18 +592,18 @@ void ShowImgui()
                             ImVec2 graphPos = ImGui::GetCursorScreenPos();
                             auto gDraw = ImGui::GetWindowDrawList();
 
-                            gDraw->AddRectFilled(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(10, 10, 14, 255), 4.0f);
-                            gDraw->AddRect(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(28, 28, 33, 255), 4.0f);
+                            gDraw->AddRectFilled(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(10, 10, 14, 230), 4.0f);
+                            gDraw->AddRect(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(30, 30, 38, 255), 4.0f);
 
                             for (int i = 1; i < 4; i++)
                             {
                                 float y = graphPos.y + (graphSize.y / 4.0f) * i;
-                                gDraw->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + graphSize.x, y), IM_COL32(22, 22, 26, 255), 1.0f);
+                                gDraw->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + graphSize.x, y), IM_COL32(20, 20, 26, 255), 1.0f);
                             }
                             for (int i = 1; i < 4; i++)
                             {
                                 float x = graphPos.x + (graphSize.x / 4.0f) * i;
-                                gDraw->AddLine(ImVec2(x, graphPos.y), ImVec2(x, graphPos.y + graphSize.y), IM_COL32(22, 22, 26, 255), 1.0f);
+                                gDraw->AddLine(ImVec2(x, graphPos.y), ImVec2(x, graphPos.y + graphSize.y), IM_COL32(20, 20, 26, 255), 1.0f);
                             }
 
                             ImVec2 prevPt = ImVec2(graphPos.x, graphPos.y + graphSize.y);
@@ -694,7 +709,7 @@ void ShowImgui()
                             float modPanelW = cw - 16;
                             ImDrawList* kd = ImGui::GetWindowDrawList();
                             ImVec2 kp = ImGui::GetCursorScreenPos();
-                            kd->AddRectFilled(ImVec2(kp.x, kp.y), ImVec2(kp.x + modPanelW, kp.y + 1), ImColor(main_color));
+                            kd->AddRectFilled(ImVec2(kp.x, kp.y + 1), ImVec2(kp.x + modPanelW * 0.4f, kp.y + 2), IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 100));
                             ImGui::Dummy(ImVec2(0, 4));
 
                             ImGui::PushStyleColor(ImGuiCol_Text, main_color);
@@ -720,7 +735,7 @@ void ShowImgui()
 
                             ImDrawList* tbd = ImGui::GetWindowDrawList();
                             ImVec2 tbp = ImGui::GetCursorScreenPos();
-                            tbd->AddRectFilled(ImVec2(tbp.x, tbp.y), ImVec2(tbp.x + cw - 16, tbp.y + 1), ImColor(main_color));
+                            tbd->AddRectFilled(ImVec2(tbp.x, tbp.y + 1), ImVec2(tbp.x + (cw - 16) * 0.4f, tbp.y + 2), IM_COL32(mc.x * 255, mc.y * 255, mc.z * 255, 100));
                             ImGui::Dummy(ImVec2(0, 4));
 
                             ImGui::PushStyleColor(ImGuiCol_Text, main_color);
@@ -879,7 +894,7 @@ void ShowImgui()
                 }
                 else if (tab == 2)
                 {
-                    renderSubtabBar(moveSubtabNames, 3);
+                    renderSubtabBar(moveSubtabNames, 4);
                     ImGui::Dummy(ImVec2(0, 6));
 
                     if (tab2 == 0)
@@ -888,7 +903,6 @@ void ShowImgui()
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Fly::Enabled);
-                            ImGui::Checkbox("Hold Key", &Options::Fly::HoldKey);
                             ImGui::PopStyleColor(1);
                         }
                         endStyledChild();
@@ -939,9 +953,45 @@ void ShowImgui()
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Fling::Enabled);
-                            ImGui::Checkbox("Hold Key", &Options::Fling::HoldKey);
                             ImGui::Checkbox("Anti-Fling", &Options::AntiFling::Enabled);
+                            ImGui::Checkbox("Target Fling", &Options::Fling::TargetFling);
                             ImGui::PopStyleColor(1);
+
+                            if (Options::Fling::TargetFling)
+                            {
+                                ImGui::Dummy(ImVec2(0, 4));
+                                auto& players = Globals::Caches::CachedPlayerObjects;
+                                static std::vector<std::string> flingTargetNames;
+                                static std::vector<int> flingNameToPlayer;
+                                flingTargetNames.clear();
+                                flingNameToPlayer.clear();
+                                int displayIdx = 0;
+                                for (int i = 0; i < (int)players.size(); i++)
+                                {
+                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
+                                    {
+                                        if (i == Options::Fling::TargetPlayerIndex)
+                                            displayIdx = (int)flingTargetNames.size();
+                                        flingTargetNames.push_back(players[i].Name);
+                                        flingNameToPlayer.push_back(i);
+                                    }
+                                }
+                                if (flingTargetNames.empty())
+                                {
+                                    flingTargetNames.push_back("No players");
+                                    flingNameToPlayer.push_back(-1);
+                                }
+                                ImGui::Text("Target:");
+                                ImGui::Combo("##flingTarget", &displayIdx,
+                                    [](void* data, int idx, const char** out) -> bool {
+                                        auto& names = *(std::vector<std::string>*)data;
+                                        if (idx < 0 || idx >= (int)names.size()) return false;
+                                        *out = names[idx].c_str();
+                                        return true;
+                                    }, &flingTargetNames, (int)flingTargetNames.size());
+                                if (displayIdx >= 0 && displayIdx < (int)flingNameToPlayer.size())
+                                    Options::Fling::TargetPlayerIndex = flingNameToPlayer[displayIdx];
+                            }
                         }
                         endStyledChild();
 
@@ -963,6 +1013,67 @@ void ShowImgui()
                             ImGui::Text("Anti-Fling Mode:");
                             const char* afModes[] = { "Disable Collision", "Stop Velocity" };
                             ImGui::Combo("##afMode", &Options::AntiFling::Mode, afModes, 2);
+                        }
+                        endStyledChild();
+                    }
+                    else if (tab2 == 3)
+                    {
+                        beginStyledChild("##tpMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Ctrl+Click TP", &Options::Teleport::CtrlClickTP);
+                            ImGui::Checkbox("TP to Players", &Options::Teleport::TPToPlayers);
+                            ImGui::PopStyleColor(1);
+                            if (Options::Teleport::TPToPlayers)
+                            {
+                                ImGui::Dummy(ImVec2(0, 4));
+                                auto& players = Globals::Caches::CachedPlayerObjects;
+                                static std::vector<std::string> tpNames;
+                                static std::vector<int> tpNameToPlayer;
+                                tpNames.clear();
+                                tpNameToPlayer.clear();
+                                int displayIdx = 0;
+                                for (int i = 0; i < (int)players.size(); i++)
+                                {
+                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
+                                    {
+                                        if (i == Options::Teleport::SelectedPlayer)
+                                            displayIdx = (int)tpNames.size();
+                                        tpNames.push_back(players[i].Name);
+                                        tpNameToPlayer.push_back(i);
+                                    }
+                                }
+                                if (tpNames.empty())
+                                {
+                                    tpNames.push_back("No players");
+                                    tpNameToPlayer.push_back(-1);
+                                }
+                                ImGui::Combo("##tpPlayer", &displayIdx,
+                                    [](void* data, int idx, const char** out) -> bool {
+                                        auto& names = *(std::vector<std::string>*)data;
+                                        if (idx < 0 || idx >= (int)names.size()) return false;
+                                        *out = names[idx].c_str();
+                                        return true;
+                                    }, &tpNames, (int)tpNames.size());
+                                if (displayIdx >= 0 && displayIdx < (int)tpNameToPlayer.size())
+                                    Options::Teleport::SelectedPlayer = tpNameToPlayer[displayIdx];
+                            }
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##tpSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_Text, main_color);
+                            KeybindSelector(" Teleport Key", &Options::Teleport::TPKey);
+                            ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Text("Toggle Type:");
+                            ImGui::SameLine();
+                            const char* toggleTypes[] = { "Hold", "Toggle" };
+                            ImGui::Combo("##tpToggle", &Options::Teleport::ToggleType, toggleTypes, 2);
                         }
                         endStyledChild();
                     }
@@ -1003,44 +1114,6 @@ void ShowImgui()
                             ImGui::SliderFloat("Position Y", &Options::Misc::KeybindListY, 0.0f, 1080.f, "%.0f");
                             ImGui::PopStyleColor(1);
 
-                            ImGui::Dummy(ImVec2(0, 10));
-                            ImGui::Separator();
-                            ImGui::Text("Teleport");
-                            ImGui::Checkbox("Ctrl+Click TP", &Options::Teleport::CtrlClickTP);
-                            ImGui::Checkbox("TP to Players", &Options::Teleport::TPToPlayers);
-                            if (Options::Teleport::TPToPlayers)
-                            {
-                                auto& players = Globals::Caches::CachedPlayerObjects;
-                                static std::vector<std::string> tpNames;
-                                static std::vector<int> tpNameToPlayer;
-                                tpNames.clear();
-                                tpNameToPlayer.clear();
-                                int displayIdx = 0;
-                                for (int i = 0; i < (int)players.size(); i++)
-                                {
-                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
-                                    {
-                                        if (i == Options::Teleport::SelectedPlayer)
-                                            displayIdx = (int)tpNames.size();
-                                        tpNames.push_back(players[i].Name);
-                                        tpNameToPlayer.push_back(i);
-                                    }
-                                }
-                                if (tpNames.empty())
-                                {
-                                    tpNames.push_back("No players");
-                                    tpNameToPlayer.push_back(-1);
-                                }
-                                ImGui::Combo("##tpPlayer", &displayIdx,
-                                    [](void* data, int idx, const char** out) -> bool {
-                                        auto& names = *(std::vector<std::string>*)data;
-                                        if (idx < 0 || idx >= (int)names.size()) return false;
-                                        *out = names[idx].c_str();
-                                        return true;
-                                    }, &tpNames, (int)tpNames.size());
-                                if (displayIdx >= 0 && displayIdx < (int)tpNameToPlayer.size())
-                                    Options::Teleport::SelectedPlayer = tpNameToPlayer[displayIdx];
-                            }
                         }
                         endStyledChild();
                     }
@@ -1187,11 +1260,12 @@ void ShowImgui()
 
                 // ============ FOOTER ============
                 float footerY = p.y + s.y - 22;
-                draw->AddLine(ImVec2(p.x + sbWidth + 12, footerY - 4), ImVec2(p.x + s.x - 6, footerY - 4), IM_COL32(28, 28, 33, 255));
+                draw->AddLine(ImVec2(p.x + sbWidth + 12, footerY - 4), ImVec2(p.x + s.x - 6, footerY - 4), IM_COL32(30, 30, 38, 255));
+                draw->AddLine(ImVec2(p.x + sbWidth + 12, footerY - 3), ImVec2(p.x + s.x - 6, footerY - 3), IM_COL32(18, 18, 22, 255));
 
                 std::string fpsRight = std::to_string(static_cast<int>(io.Framerate)) + " FPS";
                 ImVec2 fpsSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, fpsRight.c_str());
-                draw->AddText(ImVec2(p.x + s.x - fpsSize.x - 10, footerY + 2), IM_COL32(100, 100, 110, 200), fpsRight.c_str());
+                draw->AddText(ImVec2(p.x + s.x - fpsSize.x - 10, footerY + 2), IM_COL32(110, 110, 125, 200), fpsRight.c_str());
 
                 ImGui::PopFont();
             }
@@ -1209,19 +1283,38 @@ void ShowImgui()
                 RunTriggerbot();
                 RunMacro();
 
+                // Teleport helpers
+                auto TeleportToPos = [](const Vectors::Vector3& targetPos) {
+                    try
+                    {
+                        auto localChar = Globals::Roblox::LocalPlayer.Character();
+                        if (!localChar.address) return;
+                        auto hrp = localChar.FindFirstChild("HumanoidRootPart");
+                        if (!hrp.address) return;
+                        uintptr_t prim = Memory->read<uintptr_t>(hrp.address + Offsets::BasePart::Primitive);
+                        if (!prim) return;
+                        Vectors::Vector3 pos = targetPos;
+                        pos.y += 5;
+                        Memory->write<Vectors::Vector3>(prim + Offsets::Primitive::Position, pos);
+                    }
+                    catch (...) {}
+                };
+
                 // Ctrl+Click Teleport
-                if (Options::Teleport::CtrlClickTP && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+                if (Options::Teleport::CtrlClickTP && Options::Teleport::TPKey == 0)
                 {
                     static bool wasLMB = false;
                     bool lmb = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-                    if (lmb && !wasLMB)
+                    bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+                    if (lmb && !wasLMB && ctrl)
                     {
                         POINT cursor;
                         GetCursorPos(&cursor);
                         float cx = static_cast<float>(cursor.x);
                         float cy = static_cast<float>(cursor.y);
 
-                        auto localChar = Globals::Roblox::LocalPlayer.Character();
+                        RobloxPlayer bestTarget;
+                        float bestDist = 400.0f * 400.0f;
                         for (auto& player : Globals::Caches::CachedPlayerObjects)
                         {
                             if (player.address == Globals::Roblox::LocalPlayer.address) continue;
@@ -1232,39 +1325,50 @@ void ShowImgui()
                             if (w2s.x < 0 || w2s.y < 0) continue;
                             float dx = w2s.x - cx;
                             float dy = w2s.y - cy;
-                            if (dx * dx + dy * dy < 50 * 50)
+                            float dist = dx * dx + dy * dy;
+                            if (dist < bestDist)
                             {
-                                auto hrp = localChar.FindFirstChild("HumanoidRootPart");
-                                if (hrp.address)
-                                {
-                                    Vectors::Vector3 targetPos = part.Position();
-                                    targetPos.y += 5;
-                                    Memory->write<Vectors::Vector3>(hrp.address + Offsets::BasePart::Position, targetPos);
-                                }
-                                break;
+                                bestDist = dist;
+                                bestTarget = player;
                             }
+                        }
+
+                        if (bestTarget.address && bestTarget.HumanoidRootPart.address)
+                        {
+                            TeleportToPos(bestTarget.HumanoidRootPart.Position());
                         }
                     }
                     wasLMB = lmb;
                 }
 
-                // TP to players dropdown
-                if (Options::Teleport::TPToPlayers && Options::Teleport::SelectedPlayer >= 0)
+                // TP keybind
+                if (Options::Teleport::TPKey != 0 && Options::Teleport::TPToPlayers && Options::Teleport::SelectedPlayer >= 0)
                 {
-                    int idx = Options::Teleport::SelectedPlayer;
-                    auto& players = Globals::Caches::CachedPlayerObjects;
-                    if (idx >= 0 && idx < (int)players.size())
+                    static bool tpWasPressed = false;
+                    bool tpPressed = (GetAsyncKeyState(Options::Teleport::TPKey) & 0x8000) != 0;
+                    bool shouldTP = false;
+                    if (Options::Teleport::ToggleType == 1)
                     {
-                        auto target = players[idx];
-                        if (target.address != Globals::Roblox::LocalPlayer.address && target.HumanoidRootPart.address)
+                        if (tpPressed && !tpWasPressed)
+                            Options::Teleport::Toggled = !Options::Teleport::Toggled;
+                        shouldTP = Options::Teleport::Toggled;
+                    }
+                    else
+                    {
+                        shouldTP = tpPressed;
+                    }
+                    tpWasPressed = tpPressed;
+
+                    if (shouldTP)
+                    {
+                        int idx = Options::Teleport::SelectedPlayer;
+                        auto& players = Globals::Caches::CachedPlayerObjects;
+                        if (idx >= 0 && idx < (int)players.size())
                         {
-                            auto localChar = Globals::Roblox::LocalPlayer.Character();
-                            auto hrp = localChar.FindFirstChild("HumanoidRootPart");
-                            if (hrp.address)
+                            auto target = players[idx];
+                            if (target.address != Globals::Roblox::LocalPlayer.address && target.HumanoidRootPart.address)
                             {
-                                Vectors::Vector3 targetPos = target.HumanoidRootPart.Position();
-                                targetPos.y += 5;
-                                Memory->write<Vectors::Vector3>(hrp.address + Offsets::BasePart::Position, targetPos);
+                                TeleportToPos(target.HumanoidRootPart.Position());
                             }
                         }
                     }

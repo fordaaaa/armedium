@@ -95,7 +95,7 @@ namespace Options
 		inline int AimbotKey = 0;
 		inline int AimingType = 0;
 
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Aimbot = false;
 		inline bool TeamCheck = false;
@@ -139,7 +139,7 @@ namespace Options
 	namespace Triggerbot
 	{
 		inline int TriggerbotKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 		inline bool TeamCheck = false;
@@ -190,7 +190,7 @@ namespace Options
 	namespace Macro
 	{
 		inline int MacroKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 		inline int Delay = 100;
@@ -213,18 +213,17 @@ namespace Options
 	namespace Fly
 	{
 		inline int FlyKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 		
 		inline bool Enabled = false;
 		inline float Speed = 100.0f;
-		inline bool HoldKey = false;
 		
 		inline bool Toggled = false;
 	}
 	namespace WalkSpeed
 	{
 		inline int WalkSpeedKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 		inline float Speed = 16.0f;
@@ -238,7 +237,7 @@ namespace Options
 	namespace Noclip
 	{
 		inline int NoclipKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 
@@ -276,13 +275,15 @@ namespace Options
 	namespace Fling
 	{
 		inline int FlingKey = 0;
-		inline int ToggleType = 0;
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 		inline float Speed = 5000.0f;
-		inline bool HoldKey = false;
 
 		inline bool Toggled = false;
+
+		inline bool TargetFling = false;
+		inline int TargetPlayerIndex = -1;
 	}
 	namespace AntiFling
 	{
@@ -291,14 +292,17 @@ namespace Options
 	}
 	namespace Teleport
 	{
-		inline bool CtrlClickTP = true;
+		inline int TPKey = 0;
+		inline int ToggleType = 1;
+		inline bool CtrlClickTP = false;
 		inline bool TPToPlayers = false;
 		inline int SelectedPlayer = -1;
+		inline bool Toggled = false;
 	}
 	namespace SilentAim
 	{
 		inline int Key = 0;
-		inline int ToggleType = 0;   // 0 Hold, 1 Toggle
+		inline int ToggleType = 1;
 
 		inline bool Enabled = false;
 		inline bool TeamCheck = true;

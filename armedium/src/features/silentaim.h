@@ -4,6 +4,7 @@
 #include "../overlay/utils/W2S.h"
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
+#include "../rbx/math/math.h"
 #include "../overlay/imgui/KeyBind.h"
 #include "aimbot.h" // reuse GetTargetPosition, GetVelocity
 
@@ -140,6 +141,9 @@ inline void RunSilentAim()
 
     Vectors::Vector3 aimPos = SilentAim_GetAimPos(target);
 
+    Vectors::Vector3 camPos = Memory->read<Vectors::Vector3>(
+        Globals::Roblox::Camera.address + Offsets::Camera::Position);
+
     // Method 0: PlayerMouse.Hit + Target overwrite (stable)
     if (Options::SilentAim::Method == 0)
     {
@@ -147,13 +151,7 @@ inline void RunSilentAim()
             Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
         if (mouseAddr)
         {
-            sCFrame hitCFrame{};
-            hitCFrame.r00 = 1.0f; hitCFrame.r01 = 0.0f; hitCFrame.r02 = 0.0f;
-            hitCFrame.r10 = 0.0f; hitCFrame.r11 = 1.0f; hitCFrame.r12 = 0.0f;
-            hitCFrame.r20 = 0.0f; hitCFrame.r21 = 0.0f; hitCFrame.r22 = 1.0f;
-            hitCFrame.x = aimPos.x;
-            hitCFrame.y = aimPos.y;
-            hitCFrame.z = aimPos.z;
+            sCFrame hitCFrame = LookAt(camPos, aimPos);
 
             Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
             Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
@@ -161,16 +159,12 @@ inline void RunSilentAim()
     }
 
     // Method 1: Camera raycast write to UnitRay + Hit + Target
-    // NOTE: UnitRay offset (0xe0) is unverified for this build and may crash.
-    // Disabled by default — enable only after verifying offsets in x64dbg.
-    if (false && Options::SilentAim::Method == 1)
+    if (Options::SilentAim::Method == 1)
     {
         uintptr_t mouseAddr = Memory->read<uintptr_t>(
             Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
         if (mouseAddr)
         {
-            Vectors::Vector3 camPos = Memory->read<Vectors::Vector3>(
-                Globals::Roblox::Camera.address + Offsets::Camera::Position);
             Vectors::Vector3 dir = aimPos - camPos;
             float len = dir.Magnitude();
             if (len > 0.0001f)
@@ -180,13 +174,7 @@ inline void RunSilentAim()
                 dir.z /= len;
             }
 
-            sCFrame hitCFrame{};
-            hitCFrame.r00 = 1.0f; hitCFrame.r01 = 0.0f; hitCFrame.r02 = 0.0f;
-            hitCFrame.r10 = 0.0f; hitCFrame.r11 = 1.0f; hitCFrame.r12 = 0.0f;
-            hitCFrame.r20 = 0.0f; hitCFrame.r21 = 0.0f; hitCFrame.r22 = 1.0f;
-            hitCFrame.x = aimPos.x;
-            hitCFrame.y = aimPos.y;
-            hitCFrame.z = aimPos.z;
+            sCFrame hitCFrame = LookAt(camPos, aimPos);
 
             Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
             Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
