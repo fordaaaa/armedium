@@ -906,8 +906,7 @@ void ShowImgui()
                             ImGui::SameLine();
                             const char* toggleTypes[] = { "Hold", "Toggle" };
                             ImGui::Combo("##flyToggle", &Options::Fly::ToggleType, toggleTypes, 2);
-                            if (!Options::Fly::HoldKey)
-                                KeybindSelector(" Fly Key", &Options::Fly::FlyKey);
+                            KeybindSelector(" Fly Key", &Options::Fly::FlyKey);
                         }
                         endStyledChild();
                     }
@@ -957,8 +956,7 @@ void ShowImgui()
                             ImGui::Dummy(ImVec2(0, 6));
                             const char* toggleTypes[] = { "Hold", "Toggle" };
                             ImGui::Combo("Toggle Type", &Options::Fling::ToggleType, toggleTypes, 2);
-                            if (!Options::Fling::HoldKey)
-                                KeybindSelector(" Fling Key", &Options::Fling::FlingKey);
+                            KeybindSelector(" Fling Key", &Options::Fling::FlingKey);
 
                             ImGui::Dummy(ImVec2(0, 10));
                             ImGui::Separator();
@@ -1013,24 +1011,35 @@ void ShowImgui()
                             if (Options::Teleport::TPToPlayers)
                             {
                                 auto& players = Globals::Caches::CachedPlayerObjects;
-                                static std::vector<std::string> playerNames;
-                                playerNames.clear();
-                                int selected = Options::Teleport::SelectedPlayer;
-                                for (auto& p : players)
+                                static std::vector<std::string> tpNames;
+                                static std::vector<int> tpNameToPlayer;
+                                tpNames.clear();
+                                tpNameToPlayer.clear();
+                                int displayIdx = 0;
+                                for (int i = 0; i < (int)players.size(); i++)
                                 {
-                                    if (p.address != Globals::Roblox::LocalPlayer.address)
-                                        playerNames.push_back(p.Name());
+                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
+                                    {
+                                        if (i == Options::Teleport::SelectedPlayer)
+                                            displayIdx = (int)tpNames.size();
+                                        tpNames.push_back(players[i].Name());
+                                        tpNameToPlayer.push_back(i);
+                                    }
                                 }
-                                if (playerNames.empty())
-                                    playerNames.push_back("No players");
-                                ImGui::Combo("##tpPlayer", &selected,
+                                if (tpNames.empty())
+                                {
+                                    tpNames.push_back("No players");
+                                    tpNameToPlayer.push_back(-1);
+                                }
+                                ImGui::Combo("##tpPlayer", &displayIdx,
                                     [](void* data, int idx, const char** out) -> bool {
-                                        auto* names = (std::vector<std::string>*)data;
-                                        if (idx < 0 || idx >= (int)names->size()) return false;
-                                        *out = (*names)[idx].c_str();
+                                        auto& names = *(std::vector<std::string>*)data;
+                                        if (idx < 0 || idx >= (int)names.size()) return false;
+                                        *out = names[idx].c_str();
                                         return true;
-                                    }, &playerNames, (int)playerNames.size());
-                                Options::Teleport::SelectedPlayer = selected;
+                                    }, &tpNames, (int)tpNames.size());
+                                if (displayIdx >= 0 && displayIdx < (int)tpNameToPlayer.size())
+                                    Options::Teleport::SelectedPlayer = tpNameToPlayer[displayIdx];
                             }
                         }
                         endStyledChild();
