@@ -10,6 +10,8 @@
 #include "features/hitboxexpander.h"
 #include "features/fly.h"
 #include "features/speed.h"
+#include "features/fling.h"
+#include "features/silentaim.h"
 #include "rbx/Caches/playercache.h"
 #include "rbx/Caches/playerobjectscache.h"
 #include "rbx/Caches/TPHandler.h"
@@ -191,6 +193,9 @@ int main()
     std::thread(RunHitboxExpander).detach();
     std::thread(FlyLoop).detach();
     std::thread(SpeedLoop).detach();
+    std::thread(FlingLoop).detach();
+    std::thread(AntiFlingLoop).detach();
+    std::thread(RunSilentAim).detach();
 
     SendWebhookAsync("Started", 1);
 

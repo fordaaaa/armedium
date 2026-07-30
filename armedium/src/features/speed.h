@@ -42,10 +42,7 @@ void SpeedLoop()
             auto humanoid = character.FindFirstChildWhichIsA("Humanoid");
             if (!humanoid.address) continue;
 
-            if (Options::WalkSpeed::Toggled)
-                humanoid.SetWalkspeed(Options::WalkSpeed::Speed);
-            else
-                humanoid.SetWalkspeed(16.0f);
+            humanoid.SetWalkspeed(Options::WalkSpeed::Toggled ? Options::WalkSpeed::Speed : 16.0f);
         }
         catch (...)
         {

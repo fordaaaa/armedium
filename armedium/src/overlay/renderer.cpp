@@ -156,6 +156,30 @@ void RenderKeybindList(ImDrawList* drawList)
             activeBinds.push_back({"WalkSpeed", Options::WalkSpeed::ToggleType == 1 ? "[Toggled]" : "[Hold]"});
     }
 
+    // Check Fling
+    if (Options::Fling::Enabled && Options::Fling::FlingKey != 0)
+    {
+        bool isActive = false;
+        if (Options::Fling::ToggleType == 1)
+            isActive = Options::Fling::Toggled;
+        else
+            isActive = (GetAsyncKeyState(Options::Fling::FlingKey) & 0x8000) != 0;
+        if (isActive)
+            activeBinds.push_back({"Fling", Options::Fling::ToggleType == 1 ? "[Toggled]" : "[Hold]"});
+    }
+
+    // Check Silent Aim
+    if (Options::SilentAim::Enabled && Options::SilentAim::Key != 0)
+    {
+        bool isActive = false;
+        if (Options::SilentAim::ToggleType == 1)
+            isActive = Options::SilentAim::Toggled;
+        else
+            isActive = (GetAsyncKeyState(Options::SilentAim::Key) & 0x8000) != 0;
+        if (isActive)
+            activeBinds.push_back({"SilentAim", Options::SilentAim::ToggleType == 1 ? "[Toggled]" : "[Hold]"});
+    }
+
     if (activeBinds.empty())
         return;
 
@@ -415,8 +439,8 @@ void ShowImgui()
                 ImGui::BeginChild("##sidebar", ImVec2(sbWidth, s.y - 8), false, ImGuiWindowFlags_NoBackground);
                 {
                     ImGui::SetCursorPosY(28);
-                    const char* sbLabels[] = { "Aim", "Visuals", "Misc" };
-                    for (int i = 0; i < 3; i++)
+                    const char* sbLabels[] = { "Aim", "Visuals", "Movement", "Misc" };
+                    for (int i = 0; i < 4; i++)
                     {
                         ImVec2 btnSize(sbWidth - 8, 44);
                         ImGui::SetCursorPosX(4);
@@ -448,7 +472,8 @@ void ShowImgui()
                 float contentW = s.x - (sbWidth + 28);
                 float contentH = s.y - 44;
 
-                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200), tab == 0 ? "Aimbot" : tab == 1 ? "Visuals" : "Miscellaneous");
+                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200),
+                    tab == 0 ? "Aimbot" : tab == 1 ? "Visuals" : tab == 2 ? "Movement" : "Miscellaneous");
                 draw->AddRectFilledMultiColor(
                     ImVec2(contentX, contentY + 18), ImVec2(contentX + contentW, contentY + 20),
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100),
@@ -473,8 +498,9 @@ void ShowImgui()
 
                     // ============ TAB CONTENT ============
                     static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
-                    static const char* visSubtabNames[] = { "ESP", "Colours", "Radar" };
-                    static const char* miscSubtabNames[] = { "Local", "Fly", "WalkSpeed", "Radar", "Config" };
+                    static const char* visSubtabNames[] = { "ESP", "Colours" };
+                    static const char* moveSubtabNames[] = { "Fly", "WalkSpeed", "Fling" };
+                    static const char* miscSubtabNames[] = { "Local", "Silent Aim", "Config" };
 
                     auto renderSubtabBar = [&](const char** names, int count) {
                         ImGui::BeginGroup();
@@ -787,7 +813,7 @@ void ShowImgui()
                 }
                 else if (tab == 1)
                 {
-                    renderSubtabBar(visSubtabNames, 3);
+                    renderSubtabBar(visSubtabNames, 2);
                     ImGui::Dummy(ImVec2(0, 6));
 
                     if (tab2 == 0)
@@ -850,49 +876,102 @@ void ShowImgui()
                         }
                         endStyledChild();
                     }
-                    else if (tab2 == 2)
+                }
+                else if (tab == 2)
+                {
+                    renderSubtabBar(moveSubtabNames, 3);
+                    ImGui::Dummy(ImVec2(0, 6));
+
+                    if (tab2 == 0)
                     {
-                        beginStyledChild("##radMain", ImVec2(cw, contentH - 58));
+                        beginStyledChild("##flyMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
-                            ImGui::Checkbox("Enabled", &Options::Radar::Enabled);
-                            ImGui::Checkbox("Team Check", &Options::Radar::TeamCheck);
-                            ImGui::Checkbox("Show Local Player", &Options::Radar::ShowLocalPlayer);
-                            ImGui::Checkbox("Rotate With Camera", &Options::Radar::RotateWithCamera);
-                            ImGui::Checkbox("Show Border", &Options::Radar::ShowBorder);
+                            ImGui::Checkbox("Enabled", &Options::Fly::Enabled);
+                            ImGui::Checkbox("Hold Key", &Options::Fly::HoldKey);
                             ImGui::PopStyleColor(1);
-
-                            ImGui::Dummy(ImVec2(0, 6));
-                            ImGui::ColorEdit3("Enemy Color", Options::Radar::EnemyColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit3("Team Color", Options::Radar::TeamColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit3("Crosshair", Options::Radar::CrosshairColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit4("Background", Options::Radar::BackgroundColor, ImGuiColorEditFlags_NoInputs);
                         }
                         endStyledChild();
 
                         ImGui::SameLine(0, 8);
 
-                        beginStyledChild("##radSet", ImVec2(cw, contentH - 58));
+                        beginStyledChild("##flySet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("Size", &Options::Radar::Size, 50.f, 300.f, "%.0f");
-                            ImGui::SliderFloat("Range", &Options::Radar::Range, 50.f, 1000.f, "%.0f");
-                            ImGui::SliderFloat("Zoom", &Options::Radar::Zoom, 0.5f, 3.f, "%.1f");
-                            ImGui::SliderFloat("Opacity", &Options::Radar::Opacity, 0.f, 1.f, "%.2f");
-                            ImGui::SliderFloat("Dot Size", &Options::Radar::DotSize, 1.f, 10.f, "%.1f");
+                            ImGui::SliderFloat("Fly Speed", &Options::Fly::Speed, 10.f, 500.f, "%.0f");
+                            ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 6));
-                            ImGui::Text("Radar Position:");
-                            ImGui::SliderFloat("Position X", &Options::Radar::PositionX, 0.f, 1920.f, "%.0f");
-                            ImGui::SliderFloat("Position Y", &Options::Radar::PositionY, 0.f, 1080.f, "%.0f");
+                            ImGui::Text("Toggle Type:");
+                            ImGui::SameLine();
+                            const char* toggleTypes[] = { "Hold", "Toggle" };
+                            ImGui::Combo("##flyToggle", &Options::Fly::ToggleType, toggleTypes, 2);
+                            if (!Options::Fly::HoldKey)
+                                KeybindSelector(" Fly Key", &Options::Fly::FlyKey);
+                        }
+                        endStyledChild();
+                    }
+                    else if (tab2 == 1)
+                    {
+                        beginStyledChild("##wsMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Enabled", &Options::WalkSpeed::Enabled);
                             ImGui::PopStyleColor(1);
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##wsSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::SliderFloat("Walk Speed", &Options::WalkSpeed::Speed, 16.f, 1000.f, "%.0f");
+                            ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 6));
+                            KeybindSelector(" WalkSpeed Key", &Options::WalkSpeed::WalkSpeedKey);
+                        }
+                        endStyledChild();
+                    }
+                    else if (tab2 == 2)
+                    {
+                        beginStyledChild("##flingMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Enabled", &Options::Fling::Enabled);
+                            ImGui::Checkbox("Hold Key", &Options::Fling::HoldKey);
+                            ImGui::Checkbox("Anti-Fling", &Options::AntiFling::Enabled);
+                            ImGui::PopStyleColor(1);
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##flingSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::SliderFloat("Fling Speed", &Options::Fling::Speed, 100.f, 20000.f, "%.0f");
+                            ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 6));
+                            const char* toggleTypes[] = { "Hold", "Toggle" };
+                            ImGui::Combo("Toggle Type", &Options::Fling::ToggleType, toggleTypes, 2);
+                            if (!Options::Fling::HoldKey)
+                                KeybindSelector(" Fling Key", &Options::Fling::FlingKey);
+
+                            ImGui::Dummy(ImVec2(0, 10));
+                            ImGui::Separator();
+                            ImGui::Text("Anti-Fling Mode:");
+                            const char* afModes[] = { "Disable Collision", "Stop Velocity" };
+                            ImGui::Combo("##afMode", &Options::AntiFling::Mode, afModes, 2);
                         }
                         endStyledChild();
                     }
                 }
-                else if (tab == 2)
+                else if (tab == 3)
                 {
-                    renderSubtabBar(miscSubtabNames, 5);
+                    renderSubtabBar(miscSubtabNames, 3);
                     ImGui::Dummy(ImVec2(0, 6));
 
                     if (tab2 == 0)
@@ -922,98 +1001,81 @@ void ShowImgui()
 
                             ImGui::Dummy(ImVec2(0, 6));
                             ImGui::Text("Keybind List Position:");
-                            ImGui::SliderFloat("Position X", &Options::Misc::KeybindListX, 0.0f, 1920.0f, "%.0f");
-                            ImGui::SliderFloat("Position Y", &Options::Misc::KeybindListY, 0.0f, 1080.0f, "%.0f");
+                            ImGui::SliderFloat("Position X", &Options::Misc::KeybindListX, 0.0f, 1920.f, "%.0f");
+                            ImGui::SliderFloat("Position Y", &Options::Misc::KeybindListY, 0.0f, 1080.f, "%.0f");
                             ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 10));
+                            ImGui::Separator();
+                            ImGui::Text("Teleport");
+                            ImGui::Checkbox("Ctrl+Click TP", &Options::Teleport::CtrlClickTP);
+                            ImGui::Checkbox("TP to Players", &Options::Teleport::TPToPlayers);
+                            if (Options::Teleport::TPToPlayers)
+                            {
+                                auto& players = Globals::Caches::CachedPlayerObjects;
+                                static std::vector<std::string> playerNames;
+                                playerNames.clear();
+                                int selected = Options::Teleport::SelectedPlayer;
+                                for (auto& p : players)
+                                {
+                                    if (p.address != Globals::Roblox::LocalPlayer.address)
+                                        playerNames.push_back(p.Name());
+                                }
+                                if (playerNames.empty())
+                                    playerNames.push_back("No players");
+                                ImGui::Combo("##tpPlayer", &selected,
+                                    [](void* data, int idx, const char** out) -> bool {
+                                        auto* names = (std::vector<std::string>*)data;
+                                        if (idx < 0 || idx >= (int)names->size()) return false;
+                                        *out = (*names)[idx].c_str();
+                                        return true;
+                                    }, &playerNames, (int)playerNames.size());
+                                Options::Teleport::SelectedPlayer = selected;
+                            }
                         }
                         endStyledChild();
                     }
                     else if (tab2 == 1)
                     {
-                        beginStyledChild("##flyMain", ImVec2(cw, contentH - 58));
+                        beginStyledChild("##silentMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
-                            ImGui::Checkbox("Enabled", &Options::Fly::Enabled);
+                            ImGui::Checkbox("Enabled", &Options::SilentAim::Enabled);
+                            ImGui::Checkbox("Team Check", &Options::SilentAim::TeamCheck);
+                            ImGui::Checkbox("Downed Check", &Options::SilentAim::DownedCheck);
+                            ImGui::Checkbox("Prediction", &Options::SilentAim::Prediction);
+                            ImGui::Checkbox("Hitbox on Fire", &Options::SilentAim::HitboxOnFire);
                             ImGui::PopStyleColor(1);
                         }
                         endStyledChild();
 
                         ImGui::SameLine(0, 8);
 
-                        beginStyledChild("##flySet", ImVec2(cw, contentH - 58));
+                        beginStyledChild("##silentSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("Fly Speed", &Options::Fly::Speed, 10.f, 200.f, "%.0f");
+                            ImGui::SliderFloat("FOV", &Options::SilentAim::FOV, 1.f, 500.f, "%.0f");
+                            ImGui::SliderFloat("Range", &Options::SilentAim::Range, 10.f, 1000.f, "%.0f");
+                            if (Options::SilentAim::Prediction)
+                            {
+                                ImGui::SliderFloat("Prediction X", &Options::SilentAim::PredictionX, 0.1f, 10.f, "%.1f");
+                                ImGui::SliderFloat("Prediction Y", &Options::SilentAim::PredictionY, 0.1f, 10.f, "%.1f");
+                            }
+                            if (Options::SilentAim::HitboxOnFire)
+                            {
+                                ImGui::SliderFloat("Hitbox Mult", &Options::SilentAim::HitboxMult, 1.f, 20.f, "%.1f");
+                                ImGui::SliderInt("Hitbox Frames", &Options::SilentAim::HitboxFrames, 1, 10);
+                            }
                             ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 6));
-                            KeybindSelector(" Fly Key", &Options::Fly::FlyKey);
+                            const char* aimMethods[] = { "Mouse Hit (Stable)", "Unit Ray (Unstable)" };
+                            ImGui::Combo("Method", &Options::SilentAim::Method, aimMethods, 2);
+                            KeybindSelector(" Silent Key", &Options::SilentAim::Key);
                         }
                         endStyledChild();
                     }
                     else if (tab2 == 2)
-                    {
-                        beginStyledChild("##wsMain", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
-                            ImGui::Checkbox("Enabled", &Options::WalkSpeed::Enabled);
-                            ImGui::PopStyleColor(1);
-                        }
-                        endStyledChild();
-
-                        ImGui::SameLine(0, 8);
-
-                        beginStyledChild("##wsSet", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("Walk Speed", &Options::WalkSpeed::Speed, 16.f, 1000.f, "%.0f");
-                            ImGui::PopStyleColor(1);
-
-                            ImGui::Dummy(ImVec2(0, 6));
-                            KeybindSelector(" WalkSpeed Key", &Options::WalkSpeed::WalkSpeedKey);
-                        }
-                        endStyledChild();
-                    }
-                    else if (tab2 == 3)
-                    {
-                        beginStyledChild("##rad2Main", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
-                            ImGui::Checkbox("Enabled", &Options::Radar::Enabled);
-                            ImGui::Checkbox("Team Check", &Options::Radar::TeamCheck);
-                            ImGui::Checkbox("Show Local Player", &Options::Radar::ShowLocalPlayer);
-                            ImGui::Checkbox("Rotate With Camera", &Options::Radar::RotateWithCamera);
-                            ImGui::Checkbox("Show Border", &Options::Radar::ShowBorder);
-                            ImGui::PopStyleColor(1);
-
-                            ImGui::Dummy(ImVec2(0, 6));
-                            ImGui::ColorEdit3("Enemy Color", Options::Radar::EnemyColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit3("Team Color", Options::Radar::TeamColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit3("Crosshair", Options::Radar::CrosshairColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::ColorEdit4("Background", Options::Radar::BackgroundColor, ImGuiColorEditFlags_NoInputs);
-                        }
-                        endStyledChild();
-
-                        ImGui::SameLine(0, 8);
-
-                        beginStyledChild("##rad2Set", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("Size", &Options::Radar::Size, 50.f, 300.f, "%.0f");
-                            ImGui::SliderFloat("Range", &Options::Radar::Range, 50.f, 1000.f, "%.0f");
-                            ImGui::SliderFloat("Zoom", &Options::Radar::Zoom, 0.5f, 3.f, "%.1f");
-                            ImGui::SliderFloat("Opacity", &Options::Radar::Opacity, 0.f, 1.f, "%.2f");
-                            ImGui::SliderFloat("Dot Size", &Options::Radar::DotSize, 1.f, 10.f, "%.1f");
-
-                            ImGui::Dummy(ImVec2(0, 6));
-                            ImGui::Text("Radar Position:");
-                            ImGui::SliderFloat("Position X", &Options::Radar::PositionX, 0.f, 1920.f, "%.0f");
-                            ImGui::SliderFloat("Position Y", &Options::Radar::PositionY, 0.f, 1080.f, "%.0f");
-                            ImGui::PopStyleColor(1);
-                        }
-                        endStyledChild();
-                    }
-                    else if (tab2 == 4)
                     {
                         static char configName[64] = "default";
                         static std::vector<std::string> configList;
@@ -1137,6 +1199,67 @@ void ShowImgui()
                 RunAimbot(ImGui::GetBackgroundDrawList());
                 RunTriggerbot();
                 RunMacro();
+
+                // Ctrl+Click Teleport
+                if (Options::Teleport::CtrlClickTP && (GetAsyncKeyState(VK_CONTROL) & 0x8000))
+                {
+                    static bool wasLMB = false;
+                    bool lmb = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+                    if (lmb && !wasLMB)
+                    {
+                        POINT cursor;
+                        GetCursorPos(&cursor);
+                        float cx = static_cast<float>(cursor.x);
+                        float cy = static_cast<float>(cursor.y);
+
+                        auto localChar = Globals::Roblox::LocalPlayer.Character();
+                        for (auto& player : Globals::Caches::CachedPlayerObjects)
+                        {
+                            if (player.address == Globals::Roblox::LocalPlayer.address) continue;
+                            auto part = player.HumanoidRootPart;
+                            if (!part.address) continue;
+
+                            auto w2s = WorldToScreen(part.Position());
+                            if (w2s.x < 0 || w2s.y < 0) continue;
+                            float dx = w2s.x - cx;
+                            float dy = w2s.y - cy;
+                            if (dx * dx + dy * dy < 50 * 50)
+                            {
+                                auto hrp = localChar.FindFirstChild("HumanoidRootPart");
+                                if (hrp.address)
+                                {
+                                    Vectors::Vector3 targetPos = part.Position();
+                                    targetPos.y += 5;
+                                    Memory->write<Vectors::Vector3>(hrp.address + Offsets::BasePart::Position, targetPos);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    wasLMB = lmb;
+                }
+
+                // TP to players dropdown
+                if (Options::Teleport::TPToPlayers && Options::Teleport::SelectedPlayer >= 0)
+                {
+                    int idx = Options::Teleport::SelectedPlayer;
+                    auto& players = Globals::Caches::CachedPlayerObjects;
+                    if (idx >= 0 && idx < (int)players.size())
+                    {
+                        auto target = players[idx];
+                        if (target.address != Globals::Roblox::LocalPlayer.address && target.HumanoidRootPart.address)
+                        {
+                            auto localChar = Globals::Roblox::LocalPlayer.Character();
+                            auto hrp = localChar.FindFirstChild("HumanoidRootPart");
+                            if (hrp.address)
+                            {
+                                Vectors::Vector3 targetPos = target.HumanoidRootPart.Position();
+                                targetPos.y += 5;
+                                Memory->write<Vectors::Vector3>(hrp.address + Offsets::BasePart::Position, targetPos);
+                            }
+                        }
+                    }
+                }
             }
             
             // Render advanced FOV visualization even when menu is open
@@ -1147,9 +1270,6 @@ void ShowImgui()
             
             // Render keybind list
             RenderKeybindList(ImGui::GetBackgroundDrawList());
-
-            // Render radar
-            RenderRadar(ImGui::GetBackgroundDrawList());
 
             std::string str = std::to_string(static_cast<int>(io.Framerate)) + " FPS";
             ImVec2 textSize = ImGui::CalcTextSize(str.c_str());
@@ -1251,107 +1371,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 void RenderNotifications(ImDrawList* drawList) {}
-void RenderRadar(ImDrawList* drawList)
-{
-    if (!Options::Radar::Enabled) return;
-
-    float size = Options::Radar::Size;
-    float halfSize = size * 0.5f;
-    float posX = Options::Radar::PositionX;
-    float posY = Options::Radar::PositionY;
-    ImVec2 center(posX + halfSize, posY + halfSize);
-
-    ImU32 bgCol = IM_COL32(
-        (int)(Options::Radar::BackgroundColor[0] * 255),
-        (int)(Options::Radar::BackgroundColor[1] * 255),
-        (int)(Options::Radar::BackgroundColor[2] * 255),
-        (int)(Options::Radar::BackgroundColor[3] * 255 * Options::Radar::Opacity));
-    drawList->AddRectFilled(ImVec2(posX, posY), ImVec2(posX + size, posY + size), bgCol, 4.0f);
-
-    if (Options::Radar::ShowBorder)
-    {
-        drawList->AddRect(ImVec2(posX, posY), ImVec2(posX + size, posY + size),
-            IM_COL32((int)(main_color.x * 255), (int)(main_color.y * 255), (int)(main_color.z * 255), 180), 4.0f, 0, 1.5f);
-    }
-
-    ImU32 crossCol = IM_COL32(
-        (int)(Options::Radar::CrosshairColor[0] * 255),
-        (int)(Options::Radar::CrosshairColor[1] * 255),
-        (int)(Options::Radar::CrosshairColor[2] * 255), 60);
-    drawList->AddLine(ImVec2(center.x, posY), ImVec2(center.x, posY + size), crossCol);
-    drawList->AddLine(ImVec2(posX, center.y), ImVec2(posX + size, center.y), crossCol);
-
-    float rangeQuarter = size * 0.25f;
-    drawList->AddRect(ImVec2(center.x - rangeQuarter, center.y - rangeQuarter),
-        ImVec2(center.x + rangeQuarter, center.y + rangeQuarter), IM_COL32(255, 255, 255, 20), 2.0f);
-
-    if (Options::Radar::ShowLocalPlayer)
-    {
-        drawList->AddCircleFilled(center, Options::Radar::DotSize + 1.0f, IM_COL32(255, 255, 255, 255));
-    }
-
-    auto localCharacter = Globals::Roblox::LocalPlayer.Character();
-    auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
-    if (!localHRP.address) return;
-
-    Vectors::Vector3 localPos = localHRP.Position();
-    auto localTeam = Globals::Roblox::LocalPlayer.Team();
-    std::string localTeamColor;
-    if (localTeam.address != 0)
-        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
-
-    bool useCamera = Options::Radar::RotateWithCamera && Globals::Roblox::Camera.address;
-    Matrixes::Matrix3x3 camRot = {};
-    if (useCamera)
-        camRot = Memory->read<Matrixes::Matrix3x3>(Globals::Roblox::Camera.address + Offsets::Camera::Rotation);
-
-    float scale = (halfSize / Options::Radar::Range) * Options::Radar::Zoom;
-
-    ImU32 enemyCol = IM_COL32(
-        (int)(Options::Radar::EnemyColor[0] * 255),
-        (int)(Options::Radar::EnemyColor[1] * 255),
-        (int)(Options::Radar::EnemyColor[2] * 255), 255);
-    ImU32 teamCol = IM_COL32(
-        (int)(Options::Radar::TeamColor[0] * 255),
-        (int)(Options::Radar::TeamColor[1] * 255),
-        (int)(Options::Radar::TeamColor[2] * 255), 255);
-
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
-    {
-        if (player.address == Globals::Roblox::LocalPlayer.address) continue;
-        if (!player.HumanoidRootPart.address) continue;
-        if (player.Health <= 0) continue;
-
-        bool isTeammate = false;
-        if (Options::Radar::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty())
-            isTeammate = (player.TeamColor == localTeamColor);
-
-        Vectors::Vector3 playerPos = player.HumanoidRootPart.Position();
-        float dx = playerPos.x - localPos.x;
-        float dz = playerPos.z - localPos.z;
-
-        float radarX, radarY;
-        if (useCamera)
-        {
-            float dotRight = dx * camRot.r00 + dz * camRot.r20;
-            float dotForward = dx * (-camRot.r02) + dz * (-camRot.r22);
-            radarX = center.x + dotRight * scale;
-            radarY = center.y - dotForward * scale;
-        }
-        else
-        {
-            radarX = center.x + dx * scale;
-            radarY = center.y + dz * scale;
-        }
-
-        radarX = std::clamp(radarX, posX + 3.0f, posX + size - 3.0f);
-        radarY = std::clamp(radarY, posY + 3.0f, posY + size - 3.0f);
-
-        ImU32 dotCol = isTeammate ? teamCol : enemyCol;
-        drawList->AddCircleFilled(ImVec2(radarX, radarY), Options::Radar::DotSize, dotCol);
-        drawList->AddCircle(ImVec2(radarX, radarY), Options::Radar::DotSize + 0.5f, IM_COL32(0, 0, 0, 150));
-    }
-}
+void RenderRadar(ImDrawList* drawList) {}
 void RenderFPSCounter(ImDrawList* drawList) {}
 void RenderPerformanceMetrics(ImDrawList* drawList) {}
 void ApplyTheme(int themeId) {}

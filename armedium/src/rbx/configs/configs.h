@@ -169,18 +169,6 @@ inline json CreateConfig(std::string configName)
         {"Speed", Options::WalkSpeed::Speed}
     };
 
-    j["Radar"] =
-    {
-        {"Enabled", Options::Radar::Enabled},
-        {"Size", Options::Radar::Size},
-        {"Range", Options::Radar::Range},
-        {"Position X", Options::Radar::PositionX},
-        {"Position Y", Options::Radar::PositionY},
-        {"Opacity", Options::Radar::Opacity},
-        {"Dot Size", Options::Radar::DotSize},
-        {"Rotate With Camera", Options::Radar::RotateWithCamera}
-    };
-
     j["SilentAim"] =
     {
         {"Key", Options::SilentAim::Key},
@@ -572,19 +560,6 @@ inline void LoadConfig(std::string configName)
 
         if (data["WalkSpeed"].contains("Speed"))
             Options::WalkSpeed::Speed = data["WalkSpeed"]["Speed"];
-    }
-
-    // Radar Loading
-    if (data.contains("Radar"))
-    {
-        if (data["Radar"].contains("Enabled")) Options::Radar::Enabled = data["Radar"]["Enabled"];
-        if (data["Radar"].contains("Size")) Options::Radar::Size = data["Radar"]["Size"];
-        if (data["Radar"].contains("Range")) Options::Radar::Range = data["Radar"]["Range"];
-        if (data["Radar"].contains("Position X")) Options::Radar::PositionX = data["Radar"]["Position X"];
-        if (data["Radar"].contains("Position Y")) Options::Radar::PositionY = data["Radar"]["Position Y"];
-        if (data["Radar"].contains("Opacity")) Options::Radar::Opacity = data["Radar"]["Opacity"];
-        if (data["Radar"].contains("Dot Size")) Options::Radar::DotSize = data["Radar"]["Dot Size"];
-        if (data["Radar"].contains("Rotate With Camera")) Options::Radar::RotateWithCamera = data["Radar"]["Rotate With Camera"];
     }
 
     // SilentAim Loading

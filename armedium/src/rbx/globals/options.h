@@ -216,7 +216,8 @@ namespace Options
 		inline int ToggleType = 0;
 		
 		inline bool Enabled = false;
-		inline float Speed = 50.0f;
+		inline float Speed = 100.0f;
+		inline bool HoldKey = false;
 		
 		inline bool Toggled = false;
 	}
@@ -272,24 +273,27 @@ namespace Options
 	{
 		inline bool Enabled = false;
 	}
-	namespace Radar
+	namespace Fling
+	{
+		inline int FlingKey = 0;
+		inline int ToggleType = 0;
+
+		inline bool Enabled = false;
+		inline float Speed = 5000.0f;
+		inline bool HoldKey = false;
+
+		inline bool Toggled = false;
+	}
+	namespace AntiFling
 	{
 		inline bool Enabled = false;
-		inline float Size = 120.0f;
-		inline float Range = 200.0f;
-		inline float PositionX = 100.0f;
-		inline float PositionY = 100.0f;
-		inline float Opacity = 0.8f;
-		inline float DotSize = 3.0f;
-		inline bool RotateWithCamera = true;
-		inline bool TeamCheck = true;
-		inline bool ShowLocalPlayer = true;
-		inline bool ShowBorder = true;
-		inline float Zoom = 1.0f;
-		inline float EnemyColor[3] = {1.0f, 0.0f, 0.0f};
-		inline float TeamColor[3] = {0.0f, 1.0f, 0.0f};
-		inline float BackgroundColor[4] = {0.0f, 0.0f, 0.0f, 0.7f};
-		inline float CrosshairColor[3] = {1.0f, 1.0f, 1.0f};
+		inline int Mode = 0; // 0 = DisableCollision, 1 = TeleportBack
+	}
+	namespace Teleport
+	{
+		inline bool CtrlClickTP = true;
+		inline bool TPToPlayers = false;
+		inline int SelectedPlayer = -1;
 	}
 	namespace SilentAim
 	{
