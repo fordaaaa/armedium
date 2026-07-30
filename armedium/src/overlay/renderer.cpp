@@ -1110,8 +1110,9 @@ void ShowImgui()
                         }
                         endStyledChild();
                     }
-                }
-                ImGui::EndChild();
+                    }
+                    }
+                    ImGui::EndChild();
 
                 // ============ FOOTER ============
                 float footerY = p.y + s.y - 22;
