@@ -31,6 +31,7 @@
 #include "../features/triggerbot.h"
 #include "../features/macro.h"
 #include "../features/crosshair.h"
+#include "../rbx/configs/configs.h"
 #include "utils/W2S.h"
 
 extern ID3D11Device* g_pd3dDevice;
@@ -39,6 +40,7 @@ extern IDXGISwapChain* g_pSwapChain;
 extern bool g_SwapChainOccluded;
 extern UINT g_ResizeWidth, g_ResizeHeight;
 extern ID3D11RenderTargetView* g_mainRenderTargetView;
+extern HWND g_overlayHwnd;
 extern ImVec4 main_color;
 extern ImFont* InterMedium;
 extern ImFont* IconFont;
@@ -50,6 +52,7 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 bool IsGameOnTop(const std::string& expectedTitle);
 void SetTransparency(HWND hwnd, bool boolean);
+void SyncOverlayToRoblox();
 void DrawNode(RobloxInstance& node);
 void ShowImgui();
 

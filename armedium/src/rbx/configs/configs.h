@@ -123,13 +123,21 @@ inline json CreateConfig(std::string configName)
     j["Misc"] =
     {
         {"Bypass", Options::Misc::Bypass},
+        {"FOV Enabled", Options::Misc::FOVEnabled},
         {"FOV", Options::Misc::FOV},
         {"Cache NPCs", Options::Misc::CacheNPCs},
         {"Keybind List", Options::Misc::KeybindList},
         {"Keybind List X", Options::Misc::KeybindListX},
         {"Keybind List Y", Options::Misc::KeybindListY},
         {"Stream Proof", Options::Misc::StreamProof},
-        {"Menu Accent Color", Options::Misc::MenuAccentColor}
+        {"Dim Background", Options::Misc::DimBackground},
+        {"Notifications", Options::Misc::NotificationsEnabled},
+        {"Menu Accent Color", Options::Misc::MenuAccentColor},
+        {"Current Theme", Options::Misc::CurrentTheme},
+        {"Animations Enabled", Options::Misc::AnimationsEnabled},
+        {"Animation Speed", Options::Misc::AnimationSpeed},
+        {"FPS Counter", Options::Misc::FPSCounterEnabled},
+        {"Performance Metrics", Options::Misc::ShowPerformanceMetrics}
     };
 
     j["HitboxExpander"] =
@@ -451,7 +459,11 @@ inline void LoadConfig(std::string configName)
     if (data["Misc"].contains("Bypass"))
         Options::Misc::Bypass = data["Misc"]["Bypass"];
     
-    Options::Misc::FOV = data["Misc"]["FOV"];
+    if (data["Misc"].contains("FOV Enabled"))
+        Options::Misc::FOVEnabled = data["Misc"]["FOV Enabled"];
+
+    if (data["Misc"].contains("FOV"))
+        Options::Misc::FOV = data["Misc"]["FOV"];
     
     if (data["Misc"].contains("Cache NPCs"))
         Options::Misc::CacheNPCs = data["Misc"]["Cache NPCs"];
@@ -467,6 +479,12 @@ inline void LoadConfig(std::string configName)
     
     if (data["Misc"].contains("Stream Proof"))
         Options::Misc::StreamProof = data["Misc"]["Stream Proof"];
+
+    if (data["Misc"].contains("Dim Background"))
+        Options::Misc::DimBackground = data["Misc"]["Dim Background"];
+
+    if (data["Misc"].contains("Notifications"))
+        Options::Misc::NotificationsEnabled = data["Misc"]["Notifications"];
     
     if (data["Misc"].contains("Menu Accent Color"))
     {
@@ -474,6 +492,21 @@ inline void LoadConfig(std::string configName)
         Options::Misc::MenuAccentColor[1] = data["Misc"]["Menu Accent Color"][1];
         Options::Misc::MenuAccentColor[2] = data["Misc"]["Menu Accent Color"][2];
     }
+
+    if (data["Misc"].contains("Current Theme"))
+        Options::Misc::CurrentTheme = data["Misc"]["Current Theme"];
+
+    if (data["Misc"].contains("Animations Enabled"))
+        Options::Misc::AnimationsEnabled = data["Misc"]["Animations Enabled"];
+
+    if (data["Misc"].contains("Animation Speed"))
+        Options::Misc::AnimationSpeed = data["Misc"]["Animation Speed"];
+
+    if (data["Misc"].contains("FPS Counter"))
+        Options::Misc::FPSCounterEnabled = data["Misc"]["FPS Counter"];
+
+    if (data["Misc"].contains("Performance Metrics"))
+        Options::Misc::ShowPerformanceMetrics = data["Misc"]["Performance Metrics"];
 
     // Hitbox Expander Loading
     if (data.contains("HitboxExpander"))

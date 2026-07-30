@@ -14,6 +14,7 @@
 #include "rbx/Caches/playerobjectscache.h"
 #include "rbx/Caches/TPHandler.h"
 #include "rbx/globals/globals.h"
+#include "rbx/configs/configs.h"
 
 bool IsGameRunning(const wchar_t* windowTitle)
 {
@@ -101,6 +102,8 @@ int main()
     log(std::string("Roblox Base Address -> 0x" + toHexString(std::to_string(Memory->getBaseAddress()), false, true)), 1);
 
     Globals::executablePath = GetExecutableDir();
+    Globals::configsPath = Globals::executablePath + "\\configs";
+    std::filesystem::create_directories(Globals::configsPath);
 
     std::thread(ShowImgui).detach();
     log("Overlay started!", 1);
@@ -147,6 +150,12 @@ int main()
     log(std::string("Logged in as " + Globals::Roblox::LocalPlayer.Name()), 1);
 
     Globals::Initialized = true;
+
+    if (std::filesystem::exists(Globals::configsPath + "\\autosave.json"))
+    {
+        log("Loading auto-saved config...", 0);
+        LoadConfig("autosave.json");
+    }
 
     log("Starting cheat...", 1);
     

@@ -27,6 +27,7 @@ namespace Options
 		inline float FPSCounterX = 10.0f;
 		inline float FPSCounterY = 10.0f;
 		inline bool ShowPerformanceMetrics = false;
+		inline bool DimBackground = true;
 	}
 	namespace HitboxExpander
 	{

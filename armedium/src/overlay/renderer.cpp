@@ -6,6 +6,7 @@ IDXGISwapChain* g_pSwapChain = nullptr;
 bool g_SwapChainOccluded = false;
 UINT g_ResizeWidth = 0, g_ResizeHeight = 0;
 ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
+HWND g_overlayHwnd = nullptr;
 
 
 bool IsGameOnTop(const std::string& expectedTitle) {
@@ -32,6 +33,45 @@ void SetTransparency(HWND hwnd, bool boolean)
     {
         exStyle &= ~WS_EX_TRANSPARENT;
         SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
+    }
+}
+
+void SyncOverlayToRoblox()
+{
+    HWND robloxHwnd = FindWindowW(NULL, L"Roblox");
+    if (!robloxHwnd)
+    {
+        if (IsWindowVisible(g_overlayHwnd))
+            ShowWindow(g_overlayHwnd, SW_HIDE);
+        return;
+    }
+
+    if (IsIconic(robloxHwnd))
+    {
+        if (IsWindowVisible(g_overlayHwnd))
+            ShowWindow(g_overlayHwnd, SW_HIDE);
+        return;
+    }
+
+    if (!IsWindowVisible(g_overlayHwnd))
+    {
+        ShowWindow(g_overlayHwnd, SW_SHOW);
+        SetWindowPos(g_overlayHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    }
+
+    RECT rect;
+    GetWindowRect(robloxHwnd, &rect);
+    int w = rect.right - rect.left;
+    int h = rect.bottom - rect.top;
+
+    RECT overlayRect;
+    GetWindowRect(g_overlayHwnd, &overlayRect);
+    int ow = overlayRect.right - overlayRect.left;
+    int oh = overlayRect.bottom - overlayRect.top;
+
+    if (rect.left != overlayRect.left || rect.top != overlayRect.top || w != ow || h != oh)
+    {
+        SetWindowPos(g_overlayHwnd, HWND_TOPMOST, rect.left, rect.top, w + 1, h + 1, SWP_SHOWWINDOW);
     }
 }
 
@@ -180,14 +220,15 @@ void ShowImgui()
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr,         L"Armedium", nullptr };
     ::RegisterClassExW(&wc);
 
-    HWND hwnd = ::CreateWindowExW(
-        WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+    g_overlayHwnd = ::CreateWindowExW(
+        WS_EX_LAYERED | WS_EX_TOOLWINDOW,
         wc.lpszClassName,
         L"Armedium",
         WS_POPUP,
         0, 0, (int)width + 1, (int)height + 1,
         nullptr, nullptr, wc.hInstance, nullptr);
 
+    HWND hwnd = g_overlayHwnd;
     SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_ALPHA);
     MARGINS Margin = { -1 };
     DwmExtendFrameIntoClientArea(hwnd, &Margin);
@@ -252,6 +293,8 @@ void ShowImgui()
         }
         g_SwapChainOccluded = false;
 
+        SyncOverlayToRoblox();
+
         if (g_ResizeWidth != 0 && g_ResizeHeight != 0)
         {
             CleanupRenderTarget();
@@ -268,6 +311,13 @@ void ShowImgui()
         {
             menu_open = !menu_open;
             SetTransparency(hwnd, !menu_open);
+            LONG exStyle = GetWindowLong(g_overlayHwnd, GWL_EXSTYLE);
+            if (menu_open)
+                exStyle |= WS_EX_TOPMOST;
+            else
+                exStyle &= ~WS_EX_TOPMOST;
+            SetWindowLong(g_overlayHwnd, GWL_EXSTYLE, exStyle);
+            SetWindowPos(g_overlayHwnd, menu_open ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
         }
         
         // Fade animation
@@ -313,7 +363,7 @@ void ShowImgui()
         if (menu_open || menuAlpha > 0.0f)
         {
             // Draw dark background overlay
-            if (backgroundAlpha > 0.0f)
+            if (Options::Misc::DimBackground && backgroundAlpha > 0.0f)
             {
                 ImGui::GetBackgroundDrawList()->AddRectFilled(
                     ImVec2(0, 0),
@@ -923,6 +973,9 @@ void ShowImgui()
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
                     ImGui::SetCursorPosX(30);
                     if (ImGui::subtab("WalkSpeed", tab2 == 2)) tab2 = 2;
+                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
+                    ImGui::SetCursorPosX(30);
+                    if (ImGui::subtab("Config", tab2 == 4)) tab2 = 4;
 
                     if (tab2 == 0) {
                         ImGui::SetCursorPosY(38);
@@ -936,6 +989,7 @@ void ShowImgui()
                             ImGui::Checkbox("Cache NPCs", &Options::Misc::CacheNPCs);
                             ImGui::Checkbox("Keybind List", &Options::Misc::KeybindList);
                             ImGui::Checkbox("Stream Proof", &Options::Misc::StreamProof);
+                            ImGui::Checkbox("Dim Background", &Options::Misc::DimBackground);
                             ImGui::PopStyleColor(1);
                         }
                         ImGui::EndChild();
@@ -1080,6 +1134,95 @@ void ShowImgui()
                         }
                         ImGui::EndChild();
                     }
+                    else if (tab2 == 4) {
+                        static char configName[64] = "default";
+                        static std::vector<std::string> configList;
+                        static int selectedConfig = -1;
+                        static float lastConfigScan = 0;
+
+                        if (ImGui::GetTime() - lastConfigScan > 2.0f)
+                        {
+                            configList.clear();
+                            try {
+                                for (const auto& entry : std::filesystem::directory_iterator(Globals::configsPath))
+                                {
+                                    if (entry.path().extension() == ".json")
+                                        configList.push_back(entry.path().filename().string());
+                                }
+                            } catch (...) {}
+                            lastConfigScan = (float)ImGui::GetTime();
+                        }
+
+                        ImGui::SetCursorPosY(38);
+                        ImGui::SetCursorPosX(122);
+                        ImGui::MenuChild("Config Controls", ImVec2(226, 337), false);
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Text("Save / Load");
+                            ImGui::Separator();
+                            ImGui::InputText("##configname", configName, sizeof(configName));
+                            if (ImGui::Button("Save Config", ImVec2(200, 30)))
+                            {
+                                std::string filename(configName);
+                                if (!filename.empty())
+                                {
+                                    if (filename.find(".json") == std::string::npos)
+                                        filename += ".json";
+                                    CreateConfig(filename);
+                                }
+                            }
+                            ImGui::Dummy(ImVec2(0, 4));
+                            if (ImGui::Button("Refresh List", ImVec2(200, 25)))
+                            {
+                                configList.clear();
+                                try {
+                                    for (const auto& entry : std::filesystem::directory_iterator(Globals::configsPath))
+                                    {
+                                        if (entry.path().extension() == ".json")
+                                            configList.push_back(entry.path().filename().string());
+                                    }
+                                } catch (...) {}
+                            }
+                            ImGui::Dummy(ImVec2(0, 4));
+                            ImGui::Text("Auto-save every 30s");
+                            ImGui::PopStyleColor(1);
+                        }
+                        ImGui::EndChild();
+
+                        ImGui::SetCursorPosY(38);
+                        ImGui::SetCursorPosX(358);
+                        ImGui::MenuChild("Config List", ImVec2(224, 337), false);
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            if (configList.empty())
+                            {
+                                ImGui::Text("No configs found.");
+                            }
+                            else
+                            {
+                                for (int i = 0; i < configList.size(); i++)
+                                {
+                                    if (ImGui::Selectable(configList[i].c_str(), selectedConfig == i))
+                                        selectedConfig = i;
+                                }
+                            }
+                            ImGui::Dummy(ImVec2(0, 8));
+                            if (selectedConfig >= 0 && selectedConfig < configList.size())
+                            {
+                                if (ImGui::Button("Load Selected", ImVec2(200, 30)))
+                                {
+                                    LoadConfig(configList[selectedConfig]);
+                                }
+                                ImGui::Dummy(ImVec2(0, 4));
+                                if (ImGui::Button("Overwrite Selected", ImVec2(200, 30)))
+                                {
+                                    CreateConfig(configList[selectedConfig]);
+                                }
+                            }
+                            ImGui::PopStyleColor(1);
+                        }
+                        ImGui::EndChild();
+                    }
                 }
 
                 ImGui::PopFont();
@@ -1116,6 +1259,13 @@ void ShowImgui()
             ImVec2 pos = ImVec2(io.DisplaySize.x - textSize.x - 10.0f, 10.0f);
             ImDrawList* drawList = ImGui::GetBackgroundDrawList();
             drawList->AddText(pos, IM_COL32(255, 255, 255, 255), str.c_str());
+        }
+
+        static float lastAutoSave = 0;
+        if (Globals::Initialized && ImGui::GetTime() - lastAutoSave > 30.0f)
+        {
+            CreateConfig("autosave.json");
+            lastAutoSave = (float)ImGui::GetTime();
         }
 
         ImGui::Render();
