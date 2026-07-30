@@ -397,11 +397,10 @@ void ShowImgui()
                 draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), IM_COL32(30, 30, 35, 255), 10.0f);
 
                 // ============ SIDEBAR ============
-                float sbWidth = 72.0f;
+                const float sbWidth = 72.0f;
                 draw->AddRectFilled(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(18, 18, 22, 255), 8.0f);
                 draw->AddRect(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(28, 28, 33, 255), 8.0f);
 
-                // Sidebar accent top
                 draw->AddRectFilledMultiColor(
                     ImVec2(p.x + 6, p.y + 4),
                     ImVec2(p.x + sbWidth + 2, p.y + 26),
@@ -411,139 +410,110 @@ void ShowImgui()
                     IM_COL32(18, 18, 22, 0)
                 );
 
-                // Sidebar tab buttons
-                const char* sbLabels[] = { "Aim", "Visuals", "Misc" };
-                float btnSize = 50.0f;
-                float btnStartY = 36.0f;
-                float btnGap = 6.0f;
-
-                for (int i = 0; i < 3; i++)
+                // Sidebar child for proper ImGui layout
+                ImGui::SetCursorPos(ImVec2(4, 4));
+                ImGui::BeginChild("##sidebar", ImVec2(sbWidth, s.y - 8), false, ImGuiWindowFlags_NoBackground);
                 {
-                    ImVec2 btnPos(p.x + 4 + (sbWidth - btnSize) / 2, p.y + btnStartY + i * (btnSize + btnGap));
-                    bool hovered = ImGui::IsMouseHoveringRect(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize));
-                    bool clicked = hovered && ImGui::IsMouseClicked(0);
-
-                    // Button background
-                    ImU32 btnBg = tab == i
-                        ? IM_COL32(30, 30, 38, 255)
-                        : (hovered ? IM_COL32(24, 24, 30, 255) : IM_COL32(18, 18, 22, 0));
-                    draw->AddRectFilled(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize), btnBg, 6.0f);
-
-                    // Active indicator bar
-                    if (tab == i)
+                    ImGui::SetCursorPosY(28);
+                    const char* sbLabels[] = { "Aim", "Visuals", "Misc" };
+                    for (int i = 0; i < 3; i++)
                     {
-                        draw->AddRectFilled(
-                            ImVec2(btnPos.x, btnPos.y + 6),
-                            ImVec2(btnPos.x + 3, btnPos.y + btnSize - 6),
-                            IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255),
-                            2.0f
-                        );
-                    }
-
-                    // Label centered in button
-                    ImVec2 labelSize = ImGui::CalcTextSize(sbLabels[i]);
-                    draw->AddText(
-                        ImVec2(btnPos.x + (btnSize - labelSize.x) / 2, btnPos.y + (btnSize - 13) / 2),
-                        tab == i
-                            ? IM_COL32(255, 255, 255, 255)
-                            : (hovered ? IM_COL32(200, 200, 200, 255) : IM_COL32(120, 120, 130, 255)),
-                        sbLabels[i]
-                    );
-
-                    if (clicked && tab != i)
-                    {
-                        tab = i;
-                        tab2 = 0;
+                        ImVec2 btnSize(sbWidth - 8, 44);
+                        ImGui::SetCursorPosX(4);
+                        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, IM_COL32(24, 24, 30, 255));
+                        if (tab == i)
+                            ImGui::PushStyleColor(ImGuiCol_Header, IM_COL32(30, 30, 38, 255));
+                        ImGui::PushStyleColor(ImGuiCol_Text, tab == i ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 255));
+                        bool clicked = ImGui::Selectable(sbLabels[i], false, ImGuiSelectableFlags_None, btnSize);
+                        ImGui::PopStyleColor(2 + (tab == i ? 1 : 0));
+                        if (tab == i)
+                        {
+                            ImVec2 rMin = ImGui::GetItemRectMin();
+                            ImVec2 rMax = ImGui::GetItemRectMax();
+                            draw->AddRectFilled(ImVec2(rMin.x, rMin.y + 6), ImVec2(rMin.x + 3, rMax.y - 6),
+                                IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255), 2.0f);
+                        }
+                        if (clicked && tab != i) { tab = i; tab2 = 0; }
                     }
                 }
+                ImGui::EndChild();
 
                 // Divider
                 draw->AddLine(ImVec2(p.x + sbWidth + 8, p.y + 8), ImVec2(p.x + sbWidth + 8, p.y + s.y - 8), IM_COL32(28, 28, 33, 255));
 
                 // ============ CONTENT AREA ============
+                float cw = (s.x - (sbWidth + 36)) / 2;
                 float contentX = p.x + sbWidth + 20;
                 float contentY = p.y + 10;
                 float contentW = s.x - (sbWidth + 28);
                 float contentH = s.y - 44;
 
-                // Content header
-                const char* tabTitles[] = { "Aimbot", "Visuals", "Miscellaneous" };
-                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200), tabTitles[tab]);
-                // Underline
+                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200), tab == 0 ? "Aimbot" : tab == 1 ? "Visuals" : "Miscellaneous");
                 draw->AddRectFilledMultiColor(
-                    ImVec2(contentX, contentY + 18),
-                    ImVec2(contentX + contentW, contentY + 20),
+                    ImVec2(contentX, contentY + 18), ImVec2(contentX + contentW, contentY + 20),
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100),
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
                     IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100)
                 );
 
-                // ============ TAB CONTENT ============
-                static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
-                static const char* visSubtabNames[] = { "ESP", "Colours", "Radar" };
-                static const char* miscSubtabNames[] = { "Local", "Fly", "WalkSpeed", "Radar", "Config" };
-
-                auto renderSubtabBar = [&](const char** names, int count) {
-                    ImGui::BeginGroup();
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (i > 0) ImGui::SameLine(0, 4);
-                        bool sel = tab2 == i;
-                        ImVec2 textSize = ImGui::CalcTextSize(names[i]);
-                        ImVec2 subtabPos = ImGui::GetCursorScreenPos();
-                        float sbw = textSize.x + 20;
-
-                        ImU32 sbBg = sel
-                            ? IM_COL32(30, 30, 38, 255)
-                            : IM_COL32(0, 0, 0, 0);
-                        ImU32 sbBorder = sel
-                            ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80)
-                            : IM_COL32(35, 35, 40, 100);
-
-                        draw->AddRectFilled(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBg, 4.0f);
-                        if (sel)
-                            draw->AddRect(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBorder, 4.0f);
-
-                        ImGui::InvisibleButton(names[i], ImVec2(sbw, 24));
-                        if (ImGui::IsItemActive() && !ImGui::IsItemHovered()) {}
-                        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
-                            tab2 = i;
-
-                        ImVec2 textPos(
-                            subtabPos.x + (sbw - textSize.x) / 2,
-                            subtabPos.y + (24 - textSize.y) / 2
-                        );
-                        draw->AddText(textPos,
-                            sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 200),
-                            names[i]);
-
-                        ImGui::SameLine(0, 0);
-                    }
-                    ImGui::EndGroup();
-                    ImGui::Dummy(ImVec2(0, 0));
-                };
-
-                auto beginStyledChild = [&](const char* id, ImVec2 size) {
-                    ImVec2 cPos = ImGui::GetCursorScreenPos();
-                    draw->AddRectFilled(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(18, 18, 22, 230), 8.0f);
-                    draw->AddRect(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(30, 30, 35, 255), 8.0f);
-                    ImGui::BeginChild(id, size, false, ImGuiWindowFlags_NoBackground);
-                };
-                auto endStyledChild = [&]() {
-                    ImGui::EndChild();
-                };
-
-                float cw = (contentW - 12) / 2;
-
-                if (tab == 0)
+                // Content area child
+                ImGui::SetCursorPos(ImVec2(sbWidth + 20, 32));
+                ImGui::BeginChild("##content", ImVec2(contentW, contentH + 6), false, ImGuiWindowFlags_NoBackground);
                 {
-                    ImGui::SetCursorPosY(34);
-                    ImGui::SetCursorPosX(contentX - p.x);
-                    renderSubtabBar(aimSubtabNames, 3);
-                    ImGui::Dummy(ImVec2(0, 6));
+                    auto beginStyledChild = [&](const char* id, ImVec2 size) {
+                        ImVec2 cPos = ImGui::GetCursorScreenPos();
+                        draw->AddRectFilled(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(18, 18, 22, 230), 8.0f);
+                        draw->AddRect(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(30, 30, 35, 255), 8.0f);
+                        ImGui::BeginChild(id, size, false, ImGuiWindowFlags_NoBackground);
+                    };
+                    auto endStyledChild = [&]() {
+                        ImGui::EndChild();
+                    };
 
-                    if (tab2 == 0)
+                    // ============ TAB CONTENT ============
+                    static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
+                    static const char* visSubtabNames[] = { "ESP", "Colours", "Radar" };
+                    static const char* miscSubtabNames[] = { "Local", "Fly", "WalkSpeed", "Radar", "Config" };
+
+                    auto renderSubtabBar = [&](const char** names, int count) {
+                        ImGui::BeginGroup();
+                        for (int i = 0; i < count; i++)
+                        {
+                            if (i > 0) ImGui::SameLine(0, 4);
+                            bool sel = tab2 == i;
+                            ImVec2 textSize = ImGui::CalcTextSize(names[i]);
+                            ImVec2 subtabPos = ImGui::GetCursorScreenPos();
+                            float sbw = textSize.x + 20;
+
+                            ImU32 sbBg = sel ? IM_COL32(30, 30, 38, 255) : IM_COL32(0, 0, 0, 0);
+                            ImU32 sbBorder = sel ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80) : IM_COL32(35, 35, 40, 100);
+
+                            draw->AddRectFilled(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBg, 4.0f);
+                            if (sel)
+                                draw->AddRect(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBorder, 4.0f);
+
+                            ImGui::InvisibleButton(names[i], ImVec2(sbw, 24));
+                            if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
+                                tab2 = i;
+
+                            ImVec2 textPos(subtabPos.x + (sbw - textSize.x) / 2, subtabPos.y + (24 - textSize.y) / 2);
+                            draw->AddText(textPos,
+                                sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 200),
+                                names[i]);
+
+                            ImGui::SameLine(0, 0);
+                        }
+                        ImGui::EndGroup();
+                        ImGui::Dummy(ImVec2(0, 0));
+                    };
+
+                    if (tab == 0)
+                    {
+                        renderSubtabBar(aimSubtabNames, 3);
+                        ImGui::Dummy(ImVec2(0, 6));
+
+                        if (tab2 == 0)
                     {
                         beginStyledChild("##aimMain", ImVec2(cw, contentH - 58));
                         {
@@ -817,8 +787,6 @@ void ShowImgui()
                 }
                 else if (tab == 1)
                 {
-                    ImGui::SetCursorPosY(34);
-                    ImGui::SetCursorPosX(contentX - p.x);
                     renderSubtabBar(visSubtabNames, 3);
                     ImGui::Dummy(ImVec2(0, 6));
 
@@ -924,8 +892,6 @@ void ShowImgui()
                 }
                 else if (tab == 2)
                 {
-                    ImGui::SetCursorPosY(34);
-                    ImGui::SetCursorPosX(contentX - p.x);
                     renderSubtabBar(miscSubtabNames, 5);
                     ImGui::Dummy(ImVec2(0, 6));
 
@@ -1145,6 +1111,7 @@ void ShowImgui()
                         endStyledChild();
                     }
                 }
+                ImGui::EndChild();
 
                 // ============ FOOTER ============
                 float footerY = p.y + s.y - 22;
