@@ -13,6 +13,7 @@ namespace Options
 		inline float KeybindListX = 20.0f;
 		inline float KeybindListY = 80.0f;
 		inline bool StreamProof = false;
+		inline bool ShowConsole = true;
 		inline float MenuAccentColor[3] = {1.0f, 0.41f, 0.71f}; // Pink (255, 105, 180) converted to 0-1 range
 
 		// UI Features
@@ -28,6 +29,8 @@ namespace Options
 		inline float FPSCounterY = 10.0f;
 		inline bool ShowPerformanceMetrics = false;
 		inline bool DimBackground = true;
+		inline bool WebhookEnabled = false;
+		inline std::string WebhookURL = "";
 	}
 	namespace HitboxExpander
 	{

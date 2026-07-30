@@ -88,6 +88,4 @@ void DrawPulsingGradientRect(ImDrawList* drawList, const ImVec2& p_min, const Im
 void StartTabTransition();
 float GetTabTransitionAlpha();
 
-// Custom tab/subtab renderers from menu
-bool renderer_tab(const char* label, const char* icon, bool selected);
-bool renderer_subtab(const char* label, const ImVec2& size_arg, const bool selected);
+

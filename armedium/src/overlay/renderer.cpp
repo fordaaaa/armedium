@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "../rbx/Webhook.h"
 
 ID3D11Device* g_pd3dDevice = nullptr;
 ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
@@ -356,6 +357,13 @@ void ShowImgui()
             }
             lastStreamProofState = Options::Misc::StreamProof;
         }
+
+        static bool lastShowConsole = Options::Misc::ShowConsole;
+        if (lastShowConsole != Options::Misc::ShowConsole)
+        {
+            ShowWindow(GetConsoleWindow(), Options::Misc::ShowConsole ? SW_SHOW : SW_HIDE);
+            lastShowConsole = Options::Misc::ShowConsole;
+        }
         
         // Update main_color from options
         main_color = ImVec4(Options::Misc::MenuAccentColor[0], Options::Misc::MenuAccentColor[1], Options::Misc::MenuAccentColor[2], 1.0f);
@@ -371,68 +379,192 @@ void ShowImgui()
                     IM_COL32(0, 0, 0, static_cast<int>(backgroundAlpha * 180))
                 );
             }
-            auto s = ImVec2{}, p = ImVec2{}, gs = ImVec2{ 600, 420 };
+            auto s = ImVec2{}, p = ImVec2{}, gs = ImVec2{ 750, 500 };
             ImGui::SetNextWindowSize(gs);
             ImGui::SetNextWindowBgAlpha(menuAlpha);
             ImGui::PushStyleVar(ImGuiStyleVar_Alpha, menuAlpha);
             ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - gs.x) * 0.5f, (io.DisplaySize.y - gs.y) * 0.5f), ImGuiCond_Once);
             ImGui::Begin("##GUI", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground);
             {
+                ImGui::PushFont(font);
+
                 s = ImVec2(ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x * 2, ImGui::GetWindowSize().y - ImGui::GetStyle().WindowPadding.y * 2);
                 p = ImVec2(ImGui::GetWindowPos().x + ImGui::GetStyle().WindowPadding.x, ImGui::GetWindowPos().y + ImGui::GetStyle().WindowPadding.y);
                 auto draw = ImGui::GetWindowDrawList();
 
-                // Main background
-                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y), ImColor(10, 10, 10, 255), 6.0f);
-                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), ImColor(28, 28, 28, 255), 6.0f);
+                // Main background with rounded corners
+                draw->AddRectFilled(ImVec2(p.x, p.y), ImVec2(p.x + s.x, p.y + s.y), IM_COL32(12, 12, 14, 245), 10.0f);
+                draw->AddRect(ImVec2(p.x + 1, p.y + 1), ImVec2(p.x + s.x - 1, p.y + s.y - 1), IM_COL32(30, 30, 35, 255), 10.0f);
 
-                // Header accent line
-                draw->AddRectFilled(ImVec2(p.x + 6, p.y + 24), ImVec2(p.x + s.x - 6, p.y + 25), ImColor(35, 35, 35, 255));
+                // ============ SIDEBAR ============
+                float sbWidth = 72.0f;
+                draw->AddRectFilled(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(18, 18, 22, 255), 8.0f);
+                draw->AddRect(ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + sbWidth + 4, p.y + s.y - 4), IM_COL32(28, 28, 33, 255), 8.0f);
 
-                // Footer line
-                draw->AddLine(ImVec2(p.x + 6, p.y + s.y - 26), ImVec2(p.x + s.x - 6, p.y + s.y - 26), ImColor(28, 28, 28, 255));
+                // Sidebar accent top glow
+                draw->AddRectFilledMultiColor(
+                    ImVec2(p.x + 4, p.y + 4),
+                    ImVec2(p.x + sbWidth + 4, p.y + 32),
+                    IM_COL32(main_color.x * 15, main_color.y * 15, main_color.z * 15, 60),
+                    IM_COL32(main_color.x * 15, main_color.y * 15, main_color.z * 15, 60),
+                    IM_COL32(18, 18, 22, 0),
+                    IM_COL32(18, 18, 22, 0)
+                );
 
-                ImGui::PushFont(font);
+                // Title in sidebar
+                draw->AddText(ImVec2(p.x + sbWidth / 2 - ImGui::CalcTextSize("AZ").x / 2 + 4, p.y + 10), IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 200), "AZ");
+                draw->AddLine(ImVec2(p.x + 10, p.y + 32), ImVec2(p.x + sbWidth - 2, p.y + 32), IM_COL32(40, 40, 45, 255));
 
-                // Title
-                draw->AddText(ImVec2(p.x + 10, p.y + 6), ImColor(main_color), "Armedium");
+                // Sidebar tab buttons
+                const char* sbLabels[] = { "Aim", "Vis", "Misc" };
+                const char* sbIcons[] = { "A", "V", "M" };
+                float btnSize = 56.0f;
+                float btnStartY = 48.0f;
+                float btnGap = 8.0f;
 
-                // User/build info in footer
-                std::string username = "User";
-                if (Globals::Initialized) {
-                    username = Globals::Roblox::LocalPlayer.Name();
+                for (int i = 0; i < 3; i++)
+                {
+                    ImVec2 btnPos(p.x + 4 + (sbWidth - btnSize) / 2, p.y + btnStartY + i * (btnSize + btnGap));
+                    bool hovered = ImGui::IsMouseHoveringRect(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize));
+                    bool clicked = hovered && ImGui::IsMouseClicked(0);
+
+                    // Button background
+                    ImU32 btnBg = tab == i
+                        ? IM_COL32(30, 30, 38, 255)
+                        : (hovered ? IM_COL32(24, 24, 30, 255) : IM_COL32(18, 18, 22, 0));
+                    draw->AddRectFilled(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize), btnBg, 6.0f);
+
+                    // Active indicator bar
+                    if (tab == i)
+                    {
+                        draw->AddRectFilled(
+                            ImVec2(btnPos.x, btnPos.y + 6),
+                            ImVec2(btnPos.x + 3, btnPos.y + btnSize - 6),
+                            IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255),
+                            2.0f
+                        );
+                        // Subtle accent border
+                        draw->AddRect(btnPos, ImVec2(btnPos.x + btnSize, btnPos.y + btnSize),
+                            IM_COL32(main_color.x * 40, main_color.y * 40, main_color.z * 40, 80), 6.0f);
+                    }
+
+                    // Icon text
+                    ImVec2 iconSize = ImGui::CalcTextSize(sbIcons[i]);
+                    draw->AddText(
+                        ImVec2(btnPos.x + (btnSize - iconSize.x) / 2, btnPos.y + 10),
+                        tab == i
+                            ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255)
+                            : (hovered ? IM_COL32(200, 200, 200, 255) : IM_COL32(120, 120, 130, 255)),
+                        sbIcons[i]
+                    );
+
+                    // Label under icon
+                    ImVec2 labelSize = ImGui::CalcTextSize(sbLabels[i]);
+                    draw->AddText(
+                        ImVec2(btnPos.x + (btnSize - labelSize.x) / 2, btnPos.y + 30),
+                        tab == i
+                            ? IM_COL32(220, 220, 225, 255)
+                            : (hovered ? IM_COL32(180, 180, 185, 255) : IM_COL32(100, 100, 110, 255)),
+                        sbLabels[i]
+                    );
+
+                    if (clicked && tab != i)
+                    {
+                        tab = i;
+                        tab2 = 0;
+                    }
                 }
-                std::string footerLeft = "Armedium v1.0";
-                std::string footerRight = username;
-                draw->AddText(ImVec2(p.x + 10, p.y + s.y - 20), ImColor(100, 100, 100, 200), footerLeft.c_str());
-                ImVec2 frSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, footerRight.c_str());
-                draw->AddText(ImVec2(p.x + s.x - frSize.x - 10, p.y + s.y - 20), ImColor(main_color), footerRight.c_str());
 
-                // Tabs
-                ImGui::SetCursorPosX(100);
-                ImGui::SetCursorPosY(6);
-                ImGui::BeginGroup();
-                if (ImGui::tab("Aim", tab == 0)) tab = 0; ImGui::SameLine();
-                if (ImGui::tab("Visuals", tab == 1)) tab = 1; ImGui::SameLine();
-                if (ImGui::tab("Misc", tab == 2)) tab = 2;
-                ImGui::EndGroup();
+                // Divider
+                draw->AddLine(ImVec2(p.x + sbWidth + 8, p.y + 8), ImVec2(p.x + sbWidth + 8, p.y + s.y - 8), IM_COL32(28, 28, 33, 255));
+
+                // ============ CONTENT AREA ============
+                float contentX = p.x + sbWidth + 20;
+                float contentY = p.y + 10;
+                float contentW = s.x - (sbWidth + 28);
+                float contentH = s.y - 44;
+
+                // Content header
+                const char* tabTitles[] = { "Aimbot", "Visuals", "Miscellaneous" };
+                draw->AddText(ImVec2(contentX, contentY), IM_COL32(255, 255, 255, 200), tabTitles[tab]);
+                // Underline
+                draw->AddRectFilledMultiColor(
+                    ImVec2(contentX, contentY + 18),
+                    ImVec2(contentX + contentW, contentY + 20),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 30),
+                    IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 100)
+                );
+
+                ImGui::SetCursorPosY(34);
+                ImGui::SetCursorPosX(contentX - p.x);
+
+                // ============ TAB CONTENT ============
+                static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
+                static const char* visSubtabNames[] = { "ESP", "Colours", "Radar" };
+                static const char* miscSubtabNames[] = { "Local", "Fly", "WalkSpeed", "Radar", "Config" };
+
+                auto renderSubtabBar = [&](const char** names, int count) {
+                    ImGui::BeginGroup();
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (i > 0) ImGui::SameLine(0, 4);
+                        bool sel = tab2 == i;
+                        ImVec2 textSize = ImGui::CalcTextSize(names[i]);
+                        ImVec2 subtabPos = ImGui::GetCursorScreenPos();
+                        float sbw = textSize.x + 20;
+
+                        ImU32 sbBg = sel
+                            ? IM_COL32(30, 30, 38, 255)
+                            : IM_COL32(0, 0, 0, 0);
+                        ImU32 sbBorder = sel
+                            ? IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 80)
+                            : IM_COL32(35, 35, 40, 100);
+
+                        draw->AddRectFilled(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBg, 4.0f);
+                        if (sel)
+                            draw->AddRect(subtabPos, ImVec2(subtabPos.x + sbw, subtabPos.y + 24), sbBorder, 4.0f);
+
+                        ImGui::InvisibleButton(names[i], ImVec2(sbw, 24));
+                        if (ImGui::IsItemActive() && !ImGui::IsItemHovered()) {}
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
+                            tab2 = i;
+
+                        ImVec2 textPos(
+                            subtabPos.x + (sbw - textSize.x) / 2,
+                            subtabPos.y + (24 - textSize.y) / 2
+                        );
+                        draw->AddText(textPos,
+                            sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(140, 140, 150, 200),
+                            names[i]);
+
+                        ImGui::SameLine(0, 0);
+                    }
+                    ImGui::EndGroup();
+                    ImGui::Dummy(ImVec2(0, 0));
+                };
+
+                auto beginStyledChild = [&](const char* id, ImVec2 size) {
+                    ImVec2 cPos = ImGui::GetCursorScreenPos();
+                    draw->AddRectFilled(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(18, 18, 22, 230), 8.0f);
+                    draw->AddRect(cPos, ImVec2(cPos.x + size.x, cPos.y + size.y), IM_COL32(30, 30, 35, 255), 8.0f);
+                    ImGui::BeginChild(id, size, false, ImGuiWindowFlags_NoBackground);
+                };
+                auto endStyledChild = [&]() {
+                    ImGui::EndChild();
+                };
+
+                float cw = (contentW - 12) / 2;
 
                 if (tab == 0)
                 {
-                    ImGui::SetCursorPosY(54);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Aimbot", tab2 == 0)) tab2 = 0;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Triggerbot", tab2 == 1)) tab2 = 1;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Hitbox", tab2 == 2)) tab2 = 2;
+                    renderSubtabBar(aimSubtabNames, 3);
+                    ImGui::Dummy(ImVec2(0, 6));
 
-                    if (tab2 == 0) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    if (tab2 == 0)
+                    {
+                        beginStyledChild("##aimMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Aimbot::Aimbot);
@@ -447,305 +579,203 @@ void ShowImgui()
                             ImGui::Checkbox("Nearest Aim", &Options::Aimbot::NearestAim);
                             if (Options::Aimbot::NearestAim)
                             {
-                                ImGui::Indent(10.0f);
+                                ImGui::Indent(14.0f);
                                 ImGui::Checkbox("Head", &Options::Aimbot::NearestHead);
                                 ImGui::Checkbox("Chest", &Options::Aimbot::NearestChest);
                                 ImGui::Checkbox("Legs", &Options::Aimbot::NearestLegs);
-                                ImGui::Unindent(10.0f);
+                                ImGui::Unindent(14.0f);
                             }
                             ImGui::PopStyleColor(1);
-                            
-                            ImGui::Dummy(ImVec2(0, 10));
-                            
-                            // Curve visualization graph
-                            // Center the graph horizontally
-                            float panelWidth = 226.0f;
-                            ImVec2 graphSize = ImVec2(200, 100);
-                            float offsetX = (panelWidth - graphSize.x) / 2.0f;
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
+
+                            ImGui::Dummy(ImVec2(0, 8));
+
+                            // Curve graph (adapted)
+                            float panelW = cw - 16;
+                            ImVec2 graphSize = ImVec2(panelW, 90);
+                            float offsetX = 0;
+
                             ImGui::Text("Smoothness Curve:");
-                            ImGui::Dummy(ImVec2(0, 5));
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            
+                            ImGui::Dummy(ImVec2(0, 3));
+
                             ImVec2 graphPos = ImGui::GetCursorScreenPos();
-                            ImDrawList* drawList = ImGui::GetWindowDrawList();
-                            
-                            // Background with menu style
-                            drawList->AddRectFilled(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(8, 8, 8, 255), 2.0f);
-                            drawList->AddRect(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(27, 27, 27, 255), 2.0f);
-                            
-                            // Grid lines
+                            auto gDraw = ImGui::GetWindowDrawList();
+
+                            gDraw->AddRectFilled(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(10, 10, 14, 255), 4.0f);
+                            gDraw->AddRect(graphPos, ImVec2(graphPos.x + graphSize.x, graphPos.y + graphSize.y), IM_COL32(28, 28, 33, 255), 4.0f);
+
                             for (int i = 1; i < 4; i++)
                             {
                                 float y = graphPos.y + (graphSize.y / 4.0f) * i;
-                                drawList->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + graphSize.x, y), IM_COL32(20, 20, 20, 255), 1.0f);
+                                gDraw->AddLine(ImVec2(graphPos.x, y), ImVec2(graphPos.x + graphSize.x, y), IM_COL32(22, 22, 26, 255), 1.0f);
                             }
                             for (int i = 1; i < 4; i++)
                             {
                                 float x = graphPos.x + (graphSize.x / 4.0f) * i;
-                                drawList->AddLine(ImVec2(x, graphPos.y), ImVec2(x, graphPos.y + graphSize.y), IM_COL32(20, 20, 20, 255), 1.0f);
+                                gDraw->AddLine(ImVec2(x, graphPos.y), ImVec2(x, graphPos.y + graphSize.y), IM_COL32(22, 22, 26, 255), 1.0f);
                             }
-                            
-                            // Draw curve based on selected type
-                            ImVec2 prevPoint = ImVec2(graphPos.x, graphPos.y + graphSize.y);
+
+                            ImVec2 prevPt = ImVec2(graphPos.x, graphPos.y + graphSize.y);
                             for (int i = 1; i <= 100; i++)
                             {
                                 float t = i / 100.0f;
-                                float value;
-                                
+                                float val;
                                 switch (Options::Aimbot::SmoothnessCurve)
                                 {
-                                    case 0: // Linear
-                                        value = t;
-                                        break;
-                                    case 1: // Ease In
-                                        value = t * t;
-                                        break;
-                                    case 2: // Ease Out
-                                        value = sqrt(t);
-                                        break;
-                                    case 3: // Ease In-Out
-                                        value = t * t * (3.0f - 2.0f * t);
-                                        break;
-                                    case 4: // Custom Bezier
+                                    case 0: val = t; break;
+                                    case 1: val = t * t; break;
+                                    case 2: val = sqrt(t); break;
+                                    case 3: val = t * t * (3.0f - 2.0f * t); break;
+                                    case 4:
                                     {
-                                        float p0 = 0.0f;
                                         float p1 = Options::Aimbot::CustomCurveP1[1];
                                         float p2 = Options::Aimbot::CustomCurveP2[1];
-                                        float p3 = 1.0f;
-                                        
                                         float u = 1.0f - t;
-                                        float tt = t * t;
-                                        float ttt = tt * t;
-                                        float uu = u * u;
-                                        float uuu = uu * u;
-                                        
-                                        value = uuu * p0 + 3 * uu * t * p1 + 3 * u * tt * p2 + ttt * p3;
+                                        val = u * u * u * 0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t;
                                         break;
                                     }
-                                    default:
-                                        value = t;
-                                        break;
+                                    default: val = t;
                                 }
-                                
-                                ImVec2 point = ImVec2(
-                                    graphPos.x + t * graphSize.x,
-                                    graphPos.y + graphSize.y - value * graphSize.y
-                                );
-                                
-                                drawList->AddLine(prevPoint, point, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255), 2.0f);
-                                prevPoint = point;
+                                ImVec2 pt(graphPos.x + t * graphSize.x, graphPos.y + graphSize.y - val * graphSize.y);
+                                gDraw->AddLine(prevPt, pt, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255), 2.0f);
+                                prevPt = pt;
                             }
-                            
-                            // Interactive control points for custom curve
+
                             if (Options::Aimbot::SmoothnessCurve == 4)
                             {
                                 Options::Aimbot::CustomCurveEnabled = true;
-                                
-                                // Control point 1
-                                ImVec2 cp1Pos = ImVec2(
-                                    graphPos.x + Options::Aimbot::CustomCurveP1[0] * graphSize.x,
-                                    graphPos.y + graphSize.y - Options::Aimbot::CustomCurveP1[1] * graphSize.y
-                                );
-                                
-                                // Control point 2
-                                ImVec2 cp2Pos = ImVec2(
-                                    graphPos.x + Options::Aimbot::CustomCurveP2[0] * graphSize.x,
-                                    graphPos.y + graphSize.y - Options::Aimbot::CustomCurveP2[1] * graphSize.y
-                                );
-                                
-                                // Draw control point lines
-                                drawList->AddLine(ImVec2(graphPos.x, graphPos.y + graphSize.y), cp1Pos, IM_COL32(100, 100, 100, 150), 1.0f);
-                                drawList->AddLine(cp2Pos, ImVec2(graphPos.x + graphSize.x, graphPos.y), IM_COL32(100, 100, 100, 150), 1.0f);
-                                
-                                // Draw control points
-                                float cpRadius = 5.0f;
-                                drawList->AddCircleFilled(cp1Pos, cpRadius, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255));
-                                drawList->AddCircle(cp1Pos, cpRadius, IM_COL32(255, 255, 255, 255), 0, 1.5f);
-                                
-                                drawList->AddCircleFilled(cp2Pos, cpRadius, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255));
-                                drawList->AddCircle(cp2Pos, cpRadius, IM_COL32(255, 255, 255, 255), 0, 1.5f);
-                                
-                                // Handle dragging
-                                ImVec2 mousePos = ImGui::GetMousePos();
-                                bool mouseDown = ImGui::IsMouseDown(0);
-                                static int draggedPoint = -1; // -1 = none, 0 = cp1, 1 = cp2
-                                
-                                if (mouseDown)
+                                ImVec2 cp1Pos(graphPos.x + Options::Aimbot::CustomCurveP1[0] * graphSize.x, graphPos.y + graphSize.y - Options::Aimbot::CustomCurveP1[1] * graphSize.y);
+                                ImVec2 cp2Pos(graphPos.x + Options::Aimbot::CustomCurveP2[0] * graphSize.x, graphPos.y + graphSize.y - Options::Aimbot::CustomCurveP2[1] * graphSize.y);
+                                gDraw->AddLine(ImVec2(graphPos.x, graphPos.y + graphSize.y), cp1Pos, IM_COL32(100, 100, 110, 150), 1.0f);
+                                gDraw->AddLine(cp2Pos, ImVec2(graphPos.x + graphSize.x, graphPos.y), IM_COL32(100, 100, 110, 150), 1.0f);
+                                float cpr = 5.0f;
+                                gDraw->AddCircleFilled(cp1Pos, cpr, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255));
+                                gDraw->AddCircle(cp1Pos, cpr, IM_COL32(255, 255, 255, 255), 0, 1.5f);
+                                gDraw->AddCircleFilled(cp2Pos, cpr, IM_COL32(main_color.x * 255, main_color.y * 255, main_color.z * 255, 255));
+                                gDraw->AddCircle(cp2Pos, cpr, IM_COL32(255, 255, 255, 255), 0, 1.5f);
+                                ImVec2 mp = ImGui::GetMousePos();
+                                static int draggedPt = -1;
+                                if (ImGui::IsMouseDown(0))
                                 {
-                                    if (draggedPoint == -1)
+                                    if (draggedPt == -1)
                                     {
-                                        // Check if mouse is over cp1
-                                        float dist1 = sqrt(pow(mousePos.x - cp1Pos.x, 2) + pow(mousePos.y - cp1Pos.y, 2));
-                                        if (dist1 <= cpRadius + 3.0f)
-                                        {
-                                            draggedPoint = 0;
-                                        }
-                                        
-                                        // Check if mouse is over cp2
-                                        float dist2 = sqrt(pow(mousePos.x - cp2Pos.x, 2) + pow(mousePos.y - cp2Pos.y, 2));
-                                        if (dist2 <= cpRadius + 3.0f)
-                                        {
-                                            draggedPoint = 1;
-                                        }
+                                        float d1 = sqrt(pow(mp.x - cp1Pos.x, 2) + pow(mp.y - cp1Pos.y, 2));
+                                        if (d1 <= cpr + 3) draggedPt = 0;
+                                        float d2 = sqrt(pow(mp.x - cp2Pos.x, 2) + pow(mp.y - cp2Pos.y, 2));
+                                        if (d2 <= cpr + 3) draggedPt = 1;
                                     }
-                                    
-                                    // Update dragged point position
-                                    if (draggedPoint == 0)
+                                    if (draggedPt == 0)
                                     {
-                                        Options::Aimbot::CustomCurveP1[0] = std::clamp((mousePos.x - graphPos.x) / graphSize.x, 0.0f, 1.0f);
-                                        Options::Aimbot::CustomCurveP1[1] = std::clamp((graphPos.y + graphSize.y - mousePos.y) / graphSize.y, 0.0f, 1.0f);
+                                        Options::Aimbot::CustomCurveP1[0] = std::clamp((mp.x - graphPos.x) / graphSize.x, 0.0f, 1.0f);
+                                        Options::Aimbot::CustomCurveP1[1] = std::clamp((graphPos.y + graphSize.y - mp.y) / graphSize.y, 0.0f, 1.0f);
                                     }
-                                    else if (draggedPoint == 1)
+                                    else if (draggedPt == 1)
                                     {
-                                        Options::Aimbot::CustomCurveP2[0] = std::clamp((mousePos.x - graphPos.x) / graphSize.x, 0.0f, 1.0f);
-                                        Options::Aimbot::CustomCurveP2[1] = std::clamp((graphPos.y + graphSize.y - mousePos.y) / graphSize.y, 0.0f, 1.0f);
+                                        Options::Aimbot::CustomCurveP2[0] = std::clamp((mp.x - graphPos.x) / graphSize.x, 0.0f, 1.0f);
+                                        Options::Aimbot::CustomCurveP2[1] = std::clamp((graphPos.y + graphSize.y - mp.y) / graphSize.y, 0.0f, 1.0f);
                                     }
                                 }
-                                else
-                                {
-                                    draggedPoint = -1;
-                                }
+                                else { draggedPt = -1; }
                             }
-                            else
-                            {
-                                Options::Aimbot::CustomCurveEnabled = false;
-                            }
-                            
-                            // Axis labels
-                            drawList->AddText(ImVec2(graphPos.x + 2, graphPos.y + graphSize.y + 2), IM_COL32(150, 150, 150, 255), "0.0");
-                            drawList->AddText(ImVec2(graphPos.x + graphSize.x - 20, graphPos.y + graphSize.y + 2), IM_COL32(150, 150, 150, 255), "1.0");
-                            
-                            ImGui::Dummy(ImVec2(graphSize.x, graphSize.y + 15));
-                        }
-                        ImGui::EndChild();
+                            else { Options::Aimbot::CustomCurveEnabled = false; }
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Modifiers", ImVec2(224, 337), false);
+                            gDraw->AddText(ImVec2(graphPos.x + 2, graphPos.y + graphSize.y + 2), IM_COL32(120, 120, 130, 200), "0.0");
+                            gDraw->AddText(ImVec2(graphPos.x + graphSize.x - 18, graphPos.y + graphSize.y + 2), IM_COL32(120, 120, 130, 200), "1.0");
+                            ImGui::Dummy(ImVec2(graphSize.x, graphSize.y + 12));
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##aimMod", ImVec2(cw, contentH - 58));
                         {
                             static const char* aimingMethods[]{ "Camera", "Mouse" };
                             ImGui::Combo("Method", &Options::Aimbot::AimingType, aimingMethods, IM_ARRAYSIZE(aimingMethods));
-                            
                             static const char* hitParts[]{ "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg" };
                             ImGui::Combo("Hit Part", &Options::Aimbot::TargetBone, hitParts, IM_ARRAYSIZE(hitParts));
                             ImGui::Combo("Air Hit Part", &Options::Aimbot::AirTargetBone, hitParts, IM_ARRAYSIZE(hitParts));
-                            
                             static const char* smoothnessCurves[]{ "Linear", "Ease In", "Ease Out", "Ease In-Out", "Custom" };
                             ImGui::Combo("Curve", &Options::Aimbot::SmoothnessCurve, smoothnessCurves, IM_ARRAYSIZE(smoothnessCurves));
-                            
+
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Smoothness", &Options::Aimbot::Smoothness, 0.f, 1.f, "%.3f");
-                            
                             if (Options::Aimbot::Shake)
-                            {
                                 ImGui::SliderFloat("Shake Intensity", &Options::Aimbot::ShakeIntensity, 0.1f, 10.0f, "%.1f");
-                            }
-                            
                             if (Options::Aimbot::Stutter)
-                            {
                                 ImGui::SliderInt("Stutter Ticks", &Options::Aimbot::StutterTicks, 1, 20);
-                            }
-                            
                             ImGui::SliderFloat("Range", &Options::Aimbot::Range, 1.f, 1000.f, "%.0f");
                             ImGui::SliderFloat("FOV", &Options::Aimbot::FOV, 10.f, 360.f, "%.0f");
                             ImGui::SliderFloat("FOV Thickness", &Options::Aimbot::FOVThickness, 1.0f, 10.0f, "%.1f");
-                            
                             if (Options::Aimbot::Prediction)
                             {
                                 ImGui::SliderFloat("Prediction X", &Options::Aimbot::PredictionX, 0.1f, 10.0f, "%.1f");
                                 ImGui::SliderFloat("Prediction Y", &Options::Aimbot::PredictionY, 0.1f, 10.0f, "%.1f");
                             }
-                            
                             ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 8));
 
-                            // Center keybind text
-                            float panelWidth = 224.0f;
-                            ImDrawList* keybindDraw = ImGui::GetWindowDrawList();
-                            ImVec2 keybindPos = ImGui::GetCursorScreenPos();
-                            keybindDraw->AddRectFilled(ImVec2(keybindPos.x, keybindPos.y), ImVec2(keybindPos.x + panelWidth - 16, keybindPos.y + 1), ImColor(main_color));
+                            float modPanelW = cw - 16;
+                            ImDrawList* kd = ImGui::GetWindowDrawList();
+                            ImVec2 kp = ImGui::GetCursorScreenPos();
+                            kd->AddRectFilled(ImVec2(kp.x, kp.y), ImVec2(kp.x + modPanelW, kp.y + 1), ImColor(main_color));
                             ImGui::Dummy(ImVec2(0, 4));
-
-                            const char* keybindText = "Aimbot Key: [ None ]";
-                            float textWidth = ImGui::CalcTextSize(keybindText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
 
                             ImGui::PushStyleColor(ImGuiCol_Text, main_color);
                             KeybindSelector(" Aimbot Key", &Options::Aimbot::AimbotKey);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 1) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 1)
+                    {
+                        beginStyledChild("##trigMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Triggerbot::Enabled);
                             ImGui::Checkbox("Team Check", &Options::Triggerbot::TeamCheck);
                             ImGui::Checkbox("Knocked Check", &Options::Triggerbot::DownedCheck);
                             ImGui::Checkbox("Advanced FOV", &Options::Triggerbot::AdvancedFOV);
-                            
                             if (Options::Triggerbot::AdvancedFOV)
-                            {
                                 ImGui::Checkbox("Show FOV", &Options::Triggerbot::ShowAdvancedFOV);
-                            }
-                            
                             ImGui::PopStyleColor(1);
-                            
+
                             ImGui::Dummy(ImVec2(0, 8));
 
-                            // Triggerbot keybind
-                            ImDrawList* tbKeybindDraw = ImGui::GetWindowDrawList();
-                            ImVec2 tbKeybindPos = ImGui::GetCursorScreenPos();
-                            tbKeybindDraw->AddRectFilled(ImVec2(tbKeybindPos.x, tbKeybindPos.y), ImVec2(tbKeybindPos.x + 210, tbKeybindPos.y + 1), ImColor(main_color));
+                            ImDrawList* tbd = ImGui::GetWindowDrawList();
+                            ImVec2 tbp = ImGui::GetCursorScreenPos();
+                            tbd->AddRectFilled(ImVec2(tbp.x, tbp.y), ImVec2(tbp.x + cw - 16, tbp.y + 1), ImColor(main_color));
                             ImGui::Dummy(ImVec2(0, 4));
 
                             ImGui::PushStyleColor(ImGuiCol_Text, main_color);
                             KeybindSelector(" Triggerbot Key", &Options::Triggerbot::TriggerbotKey);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##trigSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            
                             if (!Options::Triggerbot::AdvancedFOV)
-                            {
                                 ImGui::SliderFloat("Radius", &Options::Triggerbot::Radius, 5.f, 50.f, "%.0f");
-                            }
-                            
                             ImGui::SliderFloat("Range", &Options::Triggerbot::Range, 1.f, 1000.f, "%.0f");
                             ImGui::SliderInt("Delay (ms)", &Options::Triggerbot::Delay, 0, 500);
-                            
-                            // Advanced FOV sliders
+
                             if (Options::Triggerbot::AdvancedFOV)
                             {
                                 ImGui::Text(" HEAD");
                                 ImGui::SliderFloat("Head FOV X", &Options::Triggerbot::HeadFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("Head FOV Y", &Options::Triggerbot::HeadFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" TORSO");
                                 ImGui::SliderFloat("Torso FOV X", &Options::Triggerbot::TorsoFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("Torso FOV Y", &Options::Triggerbot::TorsoFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" UPPER TORSO");
                                 ImGui::SliderFloat("U Torso FOV X", &Options::Triggerbot::UpperTorsoFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("U Torso FOV Y", &Options::Triggerbot::UpperTorsoFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" LOWER TORSO");
                                 ImGui::SliderFloat("L Torso FOV X", &Options::Triggerbot::LowerTorsoFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L Torso FOV Y", &Options::Triggerbot::LowerTorsoFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" LEFT ARM");
                                 ImGui::SliderFloat("L U Arm FOV X", &Options::Triggerbot::LeftUpperArmFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L U Arm FOV Y", &Options::Triggerbot::LeftUpperArmFOV_Y, 0.f, 100.f, "%.1f");
@@ -753,7 +783,6 @@ void ShowImgui()
                                 ImGui::SliderFloat("L L Arm FOV Y", &Options::Triggerbot::LeftLowerArmFOV_Y, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L Hand FOV X", &Options::Triggerbot::LeftHandFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L Hand FOV Y", &Options::Triggerbot::LeftHandFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" RIGHT ARM");
                                 ImGui::SliderFloat("R U Arm FOV X", &Options::Triggerbot::RightUpperArmFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("R U Arm FOV Y", &Options::Triggerbot::RightUpperArmFOV_Y, 0.f, 100.f, "%.1f");
@@ -761,7 +790,6 @@ void ShowImgui()
                                 ImGui::SliderFloat("R L Arm FOV Y", &Options::Triggerbot::RightLowerArmFOV_Y, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("R Hand FOV X", &Options::Triggerbot::RightHandFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("R Hand FOV Y", &Options::Triggerbot::RightHandFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" LEFT LEG");
                                 ImGui::SliderFloat("L U Leg FOV X", &Options::Triggerbot::LeftUpperLegFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L U Leg FOV Y", &Options::Triggerbot::LeftUpperLegFOV_Y, 0.f, 100.f, "%.1f");
@@ -769,7 +797,6 @@ void ShowImgui()
                                 ImGui::SliderFloat("L L Leg FOV Y", &Options::Triggerbot::LeftLowerLegFOV_Y, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L Foot FOV X", &Options::Triggerbot::LeftFootFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("L Foot FOV Y", &Options::Triggerbot::LeftFootFOV_Y, 0.f, 100.f, "%.1f");
-                                
                                 ImGui::Text(" RIGHT LEG");
                                 ImGui::SliderFloat("R U Leg FOV X", &Options::Triggerbot::RightUpperLegFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("R U Leg FOV Y", &Options::Triggerbot::RightUpperLegFOV_Y, 0.f, 100.f, "%.1f");
@@ -778,15 +805,13 @@ void ShowImgui()
                                 ImGui::SliderFloat("R Foot FOV X", &Options::Triggerbot::RightFootFOV_X, 0.f, 100.f, "%.1f");
                                 ImGui::SliderFloat("R Foot FOV Y", &Options::Triggerbot::RightFootFOV_Y, 0.f, 100.f, "%.1f");
                             }
-                            
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 2) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 2)
+                    {
+                        beginStyledChild("##hitMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::HitboxExpander::Enabled);
@@ -794,11 +819,11 @@ void ShowImgui()
                             ImGui::Checkbox("Walk Through", &Options::HitboxExpander::WalkThrough);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##hitSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Horizontal Size", &Options::HitboxExpander::HorizontalSize, 1.0f, 50.0f, "%.1f");
@@ -806,25 +831,17 @@ void ShowImgui()
                             ImGui::SliderFloat("Transparency", &Options::HitboxExpander::HitboxTransparency, 0.0f, 1.0f, "%.2f");
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
                 }
                 else if (tab == 1)
                 {
-                    ImGui::SetCursorPosY(54);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("ESP", tab2 == 0)) tab2 = 0;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Colours", tab2 == 1)) tab2 = 1;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Radar", tab2 == 2)) tab2 = 2;
+                    renderSubtabBar(visSubtabNames, 3);
+                    ImGui::Dummy(ImVec2(0, 6));
 
-                    if (tab2 == 0) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    if (tab2 == 0)
+                    {
+                        beginStyledChild("##espMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             CheckboxWithColorPicker("Names", &Options::ESP::Name, Options::ESP::Color);
@@ -836,19 +853,17 @@ void ShowImgui()
                             ImGui::Checkbox("Team Check", &Options::ESP::TeamCheck);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##espSet", ImVec2(cw, contentH - 58));
                         {
                             static const char* boxTypes[]{ "None", "Normal Box", "3D Box" };
                             ImGui::Combo("Box", &Options::ESP::BoxType, boxTypes, IM_ARRAYSIZE(boxTypes));
-
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Outline", &Options::ESP::OutlineEnabled);
                             ImGui::PopStyleColor(1);
-
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Box Thickness", &Options::ESP::BoxThickness, 1.0f, 10.0f);
                             ImGui::SliderFloat("Tracer Thickness", &Options::ESP::TracerThickness, 1.0f, 10.0f);
@@ -856,66 +871,37 @@ void ShowImgui()
                             ImGui::SliderFloat("Skeleton Thickness", &Options::ESP::SkeletonThickness, 1.0f, 10.0f);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 1) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("ESP Colors", ImVec2(226, 337), false);
+                    else if (tab2 == 1)
+                    {
+                        beginStyledChild("##espCol", ImVec2(cw, contentH - 58));
                         {
-                            // Center color pickers
-                            float panelWidth = 226.0f;
-                            float colorPickerWidth = 180.0f; // Approximate width of color picker
-                            float offsetX = (panelWidth - colorPickerWidth) / 2.0f;
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("Box Color", Options::ESP::BoxColor, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("3D Box Color", Options::ESP::ESP3DColor, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("Name Color", Options::ESP::Color, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("Distance Color", Options::ESP::DistanceColor, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("Tracer Color", Options::ESP::TracerColor, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("Chams Color", Options::ESP::ChamsColor, ImGuiColorEditFlags_NoInputs);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("FOV Colors", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##fovCol", ImVec2(cw, contentH - 58));
                         {
-                            // Center color pickers
-                            float panelWidth = 224.0f;
-                            float colorPickerWidth = 180.0f;
-                            float offsetX = (panelWidth - colorPickerWidth) / 2.0f;
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit3("FOV Color", Options::Aimbot::FOVColor, ImGuiColorEditFlags_NoInputs);
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             if (ImGui::ColorEdit3("Menu Accent", Options::Misc::MenuAccentColor, ImGuiColorEditFlags_NoInputs))
                             {
-                                // Update main_color when the color picker changes
                                 main_color = ImVec4(Options::Misc::MenuAccentColor[0], Options::Misc::MenuAccentColor[1], Options::Misc::MenuAccentColor[2], 1.0f);
                             }
-                            
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
                             ImGui::ColorEdit4("FOV Fill Color", Options::Aimbot::FOVFillColor, ImGuiColorEditFlags_NoInputs);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 2) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 2)
+                    {
+                        beginStyledChild("##radMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Radar::Enabled);
@@ -925,19 +911,17 @@ void ShowImgui()
                             ImGui::Checkbox("Show Border", &Options::Radar::ShowBorder);
                             ImGui::PopStyleColor(1);
 
-                            ImGui::Dummy(ImVec2(0, 8));
-                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::Dummy(ImVec2(0, 6));
                             ImGui::ColorEdit3("Enemy Color", Options::Radar::EnemyColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit3("Team Color", Options::Radar::TeamColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit3("Crosshair", Options::Radar::CrosshairColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit4("Background", Options::Radar::BackgroundColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##radSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Size", &Options::Radar::Size, 50.f, 300.f, "%.0f");
@@ -946,41 +930,23 @@ void ShowImgui()
                             ImGui::SliderFloat("Opacity", &Options::Radar::Opacity, 0.f, 1.f, "%.2f");
                             ImGui::SliderFloat("Dot Size", &Options::Radar::DotSize, 1.f, 10.f, "%.1f");
 
-                            ImGui::Dummy(ImVec2(0, 8));
-
-                            float panelWidth = 224.0f;
-                            const char* posText = "Radar Position:";
-                            float textWidth = ImGui::CalcTextSize(posText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            ImGui::Text(posText);
-
+                            ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Text("Radar Position:");
                             ImGui::SliderFloat("Position X", &Options::Radar::PositionX, 0.f, 1920.f, "%.0f");
                             ImGui::SliderFloat("Position Y", &Options::Radar::PositionY, 0.f, 1080.f, "%.0f");
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
                 }
                 else if (tab == 2)
                 {
-                    ImGui::SetCursorPosY(54);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Local", tab2 == 0)) tab2 = 0;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Fly", tab2 == 1)) tab2 = 1;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("WalkSpeed", tab2 == 2)) tab2 = 2;
-                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 28);
-                    ImGui::SetCursorPosX(30);
-                    if (ImGui::subtab("Config", tab2 == 4)) tab2 = 4;
+                    renderSubtabBar(miscSubtabNames, 5);
+                    ImGui::Dummy(ImVec2(0, 6));
 
-                    if (tab2 == 0) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    if (tab2 == 0)
+                    {
+                        beginStyledChild("##locMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Headless", &Options::ESP::Headless);
@@ -989,106 +955,77 @@ void ShowImgui()
                             ImGui::Checkbox("Cache NPCs", &Options::Misc::CacheNPCs);
                             ImGui::Checkbox("Keybind List", &Options::Misc::KeybindList);
                             ImGui::Checkbox("Stream Proof", &Options::Misc::StreamProof);
+                            ImGui::Checkbox("Show Console", &Options::Misc::ShowConsole);
                             ImGui::Checkbox("Dim Background", &Options::Misc::DimBackground);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##locSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            
                             if (Options::Misc::FOVEnabled)
-                            {
                                 ImGui::SliderFloat("Camera FOV", &Options::Misc::FOV, 70.f, 120.f, "%.0f");
-                            }
-                            
-                            ImGui::Dummy(ImVec2(0, 10));
-                            
-                            // Center the text
-                            float panelWidth = 224.0f;
-                            const char* posText = "Keybind List Position:";
-                            float textWidth = ImGui::CalcTextSize(posText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            ImGui::Text(posText);
-                            
+
+                            ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Text("Keybind List Position:");
                             ImGui::SliderFloat("Position X", &Options::Misc::KeybindListX, 0.0f, 1920.0f, "%.0f");
                             ImGui::SliderFloat("Position Y", &Options::Misc::KeybindListY, 0.0f, 1080.0f, "%.0f");
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 1) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 1)
+                    {
+                        beginStyledChild("##flyMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Fly::Enabled);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##flySet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Fly Speed", &Options::Fly::Speed, 10.f, 200.f, "%.0f");
                             ImGui::PopStyleColor(1);
 
-                            ImGui::Dummy(ImVec2(0, 8));
-                            
-                            // Center keybind text
-                            float panelWidth = 224.0f;
-                            const char* keybindText = "Fly Key: [ None ]";
-                            float textWidth = ImGui::CalcTextSize(keybindText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            
+                            ImGui::Dummy(ImVec2(0, 6));
                             KeybindSelector(" Fly Key", &Options::Fly::FlyKey);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 2) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 2)
+                    {
+                        beginStyledChild("##wsMain", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::WalkSpeed::Enabled);
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##wsSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Walk Speed", &Options::WalkSpeed::Speed, 16.f, 1000.f, "%.0f");
                             ImGui::PopStyleColor(1);
 
-                            ImGui::Dummy(ImVec2(0, 8));
-                            
-                            // Center keybind text
-                            float panelWidth = 224.0f;
-                            const char* keybindText = "WalkSpeed Key: [ None ]";
-                            float textWidth = ImGui::CalcTextSize(keybindText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            
+                            ImGui::Dummy(ImVec2(0, 6));
                             KeybindSelector(" WalkSpeed Key", &Options::WalkSpeed::WalkSpeedKey);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 3) {
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Main Group", ImVec2(226, 337), false);
+                    else if (tab2 == 3)
+                    {
+                        beginStyledChild("##rad2Main", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Checkbox("Enabled", &Options::Radar::Enabled);
@@ -1098,19 +1035,17 @@ void ShowImgui()
                             ImGui::Checkbox("Show Border", &Options::Radar::ShowBorder);
                             ImGui::PopStyleColor(1);
 
-                            ImGui::Dummy(ImVec2(0, 8));
-                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::Dummy(ImVec2(0, 6));
                             ImGui::ColorEdit3("Enemy Color", Options::Radar::EnemyColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit3("Team Color", Options::Radar::TeamColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit3("Crosshair", Options::Radar::CrosshairColor, ImGuiColorEditFlags_NoInputs);
                             ImGui::ColorEdit4("Background", Options::Radar::BackgroundColor, ImGuiColorEditFlags_NoInputs);
-                            ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Settings", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##rad2Set", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
                             ImGui::SliderFloat("Size", &Options::Radar::Size, 50.f, 300.f, "%.0f");
@@ -1119,22 +1054,16 @@ void ShowImgui()
                             ImGui::SliderFloat("Opacity", &Options::Radar::Opacity, 0.f, 1.f, "%.2f");
                             ImGui::SliderFloat("Dot Size", &Options::Radar::DotSize, 1.f, 10.f, "%.1f");
 
-                            ImGui::Dummy(ImVec2(0, 8));
-
-                            float panelWidth = 224.0f;
-                            const char* posText = "Radar Position:";
-                            float textWidth = ImGui::CalcTextSize(posText).x;
-                            float offsetX = (panelWidth - textWidth) / 2.0f;
-                            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offsetX);
-                            ImGui::Text(posText);
-
+                            ImGui::Dummy(ImVec2(0, 6));
+                            ImGui::Text("Radar Position:");
                             ImGui::SliderFloat("Position X", &Options::Radar::PositionX, 0.f, 1920.f, "%.0f");
                             ImGui::SliderFloat("Position Y", &Options::Radar::PositionY, 0.f, 1080.f, "%.0f");
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
-                    else if (tab2 == 4) {
+                    else if (tab2 == 4)
+                    {
                         static char configName[64] = "default";
                         static std::vector<std::string> configList;
                         static int selectedConfig = -1;
@@ -1153,15 +1082,13 @@ void ShowImgui()
                             lastConfigScan = (float)ImGui::GetTime();
                         }
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(122);
-                        ImGui::MenuChild("Config Controls", ImVec2(226, 337), false);
+                        beginStyledChild("##cfgCtrl", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             ImGui::Text("Save / Load");
                             ImGui::Separator();
                             ImGui::InputText("##configname", configName, sizeof(configName));
-                            if (ImGui::Button("Save Config", ImVec2(200, 30)))
+                            if (ImGui::Button("Save Config", ImVec2(cw - 24, 30)))
                             {
                                 std::string filename(configName);
                                 if (!filename.empty())
@@ -1172,7 +1099,7 @@ void ShowImgui()
                                 }
                             }
                             ImGui::Dummy(ImVec2(0, 4));
-                            if (ImGui::Button("Refresh List", ImVec2(200, 25)))
+                            if (ImGui::Button("Refresh List", ImVec2(cw - 24, 25)))
                             {
                                 configList.clear();
                                 try {
@@ -1185,13 +1112,26 @@ void ShowImgui()
                             }
                             ImGui::Dummy(ImVec2(0, 4));
                             ImGui::Text("Auto-save every 30s");
+
+                            ImGui::Dummy(ImVec2(0, 8));
+                            ImGui::Separator();
+                            ImGui::Text("Discord Webhook");
+                            ImGui::Checkbox("Enabled", &Options::Misc::WebhookEnabled);
+                            static char webhookBuf[512] = "";
+                            if (webhookBuf[0] == '\0' && !Options::Misc::WebhookURL.empty())
+                                strcpy_s(webhookBuf, Options::Misc::WebhookURL.c_str());
+                            ImGui::InputText("##webhookurl", webhookBuf, sizeof(webhookBuf));
+                            if (ImGui::Button("Set Webhook", ImVec2(cw - 24, 25)))
+                                Options::Misc::WebhookURL = webhookBuf;
+                            if (ImGui::Button("Test Webhook", ImVec2(cw - 24, 25)))
+                                SendWebhookAsync("Armedium webhook test");
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
 
-                        ImGui::SetCursorPosY(38);
-                        ImGui::SetCursorPosX(358);
-                        ImGui::MenuChild("Config List", ImVec2(224, 337), false);
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##cfgList", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
                             if (configList.empty())
@@ -1209,21 +1149,31 @@ void ShowImgui()
                             ImGui::Dummy(ImVec2(0, 8));
                             if (selectedConfig >= 0 && selectedConfig < configList.size())
                             {
-                                if (ImGui::Button("Load Selected", ImVec2(200, 30)))
-                                {
+                                if (ImGui::Button("Load Selected", ImVec2(cw - 24, 30)))
                                     LoadConfig(configList[selectedConfig]);
-                                }
                                 ImGui::Dummy(ImVec2(0, 4));
-                                if (ImGui::Button("Overwrite Selected", ImVec2(200, 30)))
-                                {
+                                if (ImGui::Button("Overwrite Selected", ImVec2(cw - 24, 30)))
                                     CreateConfig(configList[selectedConfig]);
-                                }
                             }
                             ImGui::PopStyleColor(1);
                         }
-                        ImGui::EndChild();
+                        endStyledChild();
                     }
                 }
+
+                // ============ FOOTER ============
+                float footerY = p.y + s.y - 22;
+                draw->AddLine(ImVec2(p.x + sbWidth + 12, footerY - 4), ImVec2(p.x + s.x - 6, footerY - 4), IM_COL32(28, 28, 33, 255));
+
+                std::string username = "User";
+                if (Globals::Initialized) {
+                    username = Globals::Roblox::LocalPlayer.Name();
+                }
+                std::string footerLeft = "Armedium v1.0";
+                std::string footerRight = username;
+                draw->AddText(ImVec2(p.x + sbWidth + 14, footerY + 2), IM_COL32(100, 100, 110, 200), footerLeft.c_str());
+                ImVec2 frSize = font->CalcTextSizeA(13.0f, FLT_MAX, 0.f, footerRight.c_str());
+                draw->AddText(ImVec2(p.x + s.x - frSize.x - 10, footerY + 2), IM_COL32(main_color.x * 200, main_color.y * 200, main_color.z * 200, 180), footerRight.c_str());
 
                 ImGui::PopFont();
             }

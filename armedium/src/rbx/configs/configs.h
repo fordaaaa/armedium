@@ -130,6 +130,7 @@ inline json CreateConfig(std::string configName)
         {"Keybind List X", Options::Misc::KeybindListX},
         {"Keybind List Y", Options::Misc::KeybindListY},
         {"Stream Proof", Options::Misc::StreamProof},
+        {"Show Console", Options::Misc::ShowConsole},
         {"Dim Background", Options::Misc::DimBackground},
         {"Notifications", Options::Misc::NotificationsEnabled},
         {"Menu Accent Color", Options::Misc::MenuAccentColor},
@@ -137,7 +138,9 @@ inline json CreateConfig(std::string configName)
         {"Animations Enabled", Options::Misc::AnimationsEnabled},
         {"Animation Speed", Options::Misc::AnimationSpeed},
         {"FPS Counter", Options::Misc::FPSCounterEnabled},
-        {"Performance Metrics", Options::Misc::ShowPerformanceMetrics}
+        {"Performance Metrics", Options::Misc::ShowPerformanceMetrics},
+        {"Webhook Enabled", Options::Misc::WebhookEnabled},
+        {"Webhook URL", Options::Misc::WebhookURL}
     };
 
     j["HitboxExpander"] =
@@ -480,6 +483,9 @@ inline void LoadConfig(std::string configName)
     if (data["Misc"].contains("Stream Proof"))
         Options::Misc::StreamProof = data["Misc"]["Stream Proof"];
 
+    if (data["Misc"].contains("Show Console"))
+        Options::Misc::ShowConsole = data["Misc"]["Show Console"];
+
     if (data["Misc"].contains("Dim Background"))
         Options::Misc::DimBackground = data["Misc"]["Dim Background"];
 
@@ -507,6 +513,12 @@ inline void LoadConfig(std::string configName)
 
     if (data["Misc"].contains("Performance Metrics"))
         Options::Misc::ShowPerformanceMetrics = data["Misc"]["Performance Metrics"];
+
+    if (data["Misc"].contains("Webhook Enabled"))
+        Options::Misc::WebhookEnabled = data["Misc"]["Webhook Enabled"];
+
+    if (data["Misc"].contains("Webhook URL"))
+        Options::Misc::WebhookURL = data["Misc"]["Webhook URL"];
 
     // Hitbox Expander Loading
     if (data.contains("HitboxExpander"))

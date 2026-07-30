@@ -15,6 +15,7 @@
 #include "rbx/Caches/TPHandler.h"
 #include "rbx/globals/globals.h"
 #include "rbx/configs/configs.h"
+#include "rbx/Webhook.h"
 
 bool IsGameRunning(const wchar_t* windowTitle)
 {
@@ -35,20 +36,13 @@ void log(const std::string& message, int type = 0)
     std::string prefix;
     switch (type)
     {
-    case 0:
-        prefix = "[*]";
-        break;
-    case 1:
-        prefix = "[+]";
-        break;
-    case 2:
-        prefix = "[-]";
-        break;
-    default:
-        prefix = "";
-        break;
+    case 0: prefix = "[*]"; break;
+    case 1: prefix = "[+]"; break;
+    case 2: prefix = "[-]"; break;
+    default: prefix = ""; break;
     }
     std::cout << prefix << " " << message << std::endl;
+    SendWebhookAsync(message, type);
 }
 
 template<typename T>
@@ -166,6 +160,8 @@ int main()
     std::thread(RunHitboxExpander).detach();
     std::thread(FlyLoop).detach();
     std::thread(SpeedLoop).detach();
+
+    SendWebhookAsync("Armedium started", 1);
 
     std::cin.get();
 
