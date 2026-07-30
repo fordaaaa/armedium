@@ -151,6 +151,7 @@
     <ClInclude Include="src\Memory\MemoryManager.h" />
     <ClInclude Include="src\rbx\globals\globals.h" />
     <ClInclude Include="src\rbx\offsets.h" />
+    <ClInclude Include="src\rbx\FFlagOffsets.h" />
     <ClInclude Include="src\overlay\utils\Header.h" />
     <ClInclude Include="src\overlay\imgui\imconfig.h" />
     <ClInclude Include="src\overlay\imgui\imgui.h" />

@@ -56,6 +56,9 @@
     <ClInclude Include="src\rbx\offsets.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\rbx\FFlagOffsets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\overlay\utils\Header.h">
       <Filter>Header Files</Filter>
     </ClInclude>
