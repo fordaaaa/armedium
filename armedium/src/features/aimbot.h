@@ -91,7 +91,7 @@ inline Vectors::Vector3 GetNearestBonePart(const RobloxPlayer& player, RobloxIns
 
 inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
 {
-    RobloxInstance part;
+    RobloxInstance part(0);
     return GetNearestBonePart(player, part);
 }
 
@@ -141,7 +141,7 @@ inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance&
 
 inline Vectors::Vector3 GetTargetPosition(const RobloxPlayer& player)
 {
-    RobloxInstance part;
+    RobloxInstance part(0);
     Vectors::Vector3 pos;
     GetTargetBoneAndPosition(player, part, pos);
     return pos;
@@ -187,7 +187,7 @@ inline RobloxPlayer GetClosestPlayer()
         if (player.Health > 0 && player.Health <= 5.0f && Options::Aimbot::DownedCheck)
             continue;
 
-        RobloxInstance targetPart;
+        RobloxInstance targetPart(0);
         Vectors::Vector3 targetPos;
         if (Options::Aimbot::NearestAim)
             targetPos = GetNearestBonePart(player, targetPart);
@@ -579,7 +579,7 @@ inline void RunAimbot(ImDrawList* drawList)
         else
         {
             // Check if current target is still within range and visible
-            RobloxInstance curPart;
+            RobloxInstance curPart(0);
             Vectors::Vector3 curPos;
             GetTargetBoneAndPosition(Options::Aimbot::CurrentTarget, curPart, curPos);
             Vectors::Vector3 diff = curPos - localHRP.Position();
