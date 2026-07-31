@@ -28,11 +28,9 @@ inline void RunMacro()
     else
     {
         // Hold mode
+        Options::Macro::Toggled = isKeyPressed;
         if (!isKeyPressed)
-        {
-            Options::Macro::Toggled = false;
             return;
-        }
     }
 
     // Spam I and O keys with delay

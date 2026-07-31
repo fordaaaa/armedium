@@ -29,6 +29,8 @@
 #include "../features/aimbot.h"
 #include "../features/silentaim.h"
 #include "../features/triggerbot.h"
+#include "../features/partchams.h"
+#include "../features/hitboxchams.h"
 #include "../features/macro.h"
 #include "../features/crosshair.h"
 #include "../rbx/configs/configs.h"

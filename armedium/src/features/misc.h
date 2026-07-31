@@ -5,129 +5,227 @@
 
 #include <thread>
 
+inline void DisablePartCollision(const RobloxInstance& part)
+{
+	if (!part.address) return;
+	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
+	if (!primitive) return;
+	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
+	flags &= ~(Offsets::PrimitiveFlags::CanCollide | Offsets::PrimitiveFlags::CanQuery | Offsets::PrimitiveFlags::CanTouch);
+	Memory->write<uint8_t>(primitive + Offsets::Primitive::Flags, flags);
+}
+
+inline void RestorePartCollision(const RobloxInstance& part)
+{
+	if (!part.address) return;
+	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
+	if (!primitive) return;
+	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
+	flags |= (Offsets::PrimitiveFlags::CanCollide | Offsets::PrimitiveFlags::CanQuery | Offsets::PrimitiveFlags::CanTouch);
+	Memory->write<uint8_t>(primitive + Offsets::Primitive::Flags, flags);
+}
+
 inline void MiscLoop()
 {
-	static auto character = Globals::Roblox::LocalPlayer.Character();
-	static auto humanoid = character.FindFirstChildWhichIsA("Humanoid");
+	static bool wasNoclipActive = false;
+	static bool wasNoclipKeyPressed = false;
+
+	static bool wasGravityEnabled = false;
+	static float originalGravity = 196.0f;
+	static float originalReadOnlyGravity = 196.0f;
+
+	static bool wasJumpPowerEnabled = false;
+	static float originalJumpPower = 50.0f;
+
+	static bool wasNameOcclusionEnabled = false;
+	static float originalNameDisplayDistance = 100.0f;
+	static float originalHealthDisplayDistance = 100.0f;
+
+	static bool wasHeadlessEnabled = false;
+	static bool wasAutoJumpEnabled = false;
+	static bool wasPlatformStandEnabled = false;
+
 	while (true)
 	{
-		character = Globals::Roblox::LocalPlayer.Character();
-		humanoid = character.FindFirstChildWhichIsA("Humanoid");
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-		// Camera FOV
-		if (Options::Misc::FOVEnabled)
+		try
 		{
-			Globals::Roblox::Camera.SetFOV(Options::Misc::FOV);
-		}
+			auto localPlayer = Globals::Roblox::LocalPlayer;
+			if (!localPlayer.address)
+				continue;
 
-		// Headless feature
-		if (Options::ESP::Headless)
-		{
-			auto head = character.FindFirstChild("Head");
-			if (head.address != 0)
+			auto character = localPlayer.Character();
+			if (!character.address)
+				continue;
+
+			auto humanoid = character.FindFirstChildWhichIsA("Humanoid");
+
+			// Camera FOV
+			if (Options::Misc::FOVEnabled && Globals::Roblox::Camera.address != 0)
 			{
-				Memory->write<float>(head.address + Offsets::BasePart::Transparency, 1.0f);
+				Globals::Roblox::Camera.SetFOV(Options::Misc::FOV);
 			}
-		}
 
-		// Infinite Jump
-		if (Options::InfiniteJump::Enabled && humanoid.address != 0)
-		{
-			if (GetAsyncKeyState(VK_SPACE) & 0x8000)
+			// Headless feature
+			if (Options::ESP::Headless)
 			{
-				Memory->write<bool>(humanoid.address + Offsets::Humanoid::Jump, true);
+				auto head = character.FindFirstChild("Head");
+				if (head.address != 0)
+					Memory->write<float>(head.address + Offsets::BasePart::Transparency, 1.0f);
+				wasHeadlessEnabled = true;
 			}
-		}
-
-		// AutoJump
-		if (Options::AutoJump::Enabled && humanoid.address != 0)
-		{
-			Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoJumpEnabled, true);
-		}
-
-		// PlatformStand
-		if (Options::PlatformStand::Enabled && humanoid.address != 0)
-		{
-			Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
-		}
-
-		// Noclip
-		if (Options::Noclip::Enabled)
-		{
-			static bool wasNoclipKeyPressed = false;
-			if (Options::Noclip::NoclipKey != 0)
+			else if (wasHeadlessEnabled)
 			{
-				bool isKeyPressed = (GetAsyncKeyState(Options::Noclip::NoclipKey) & 0x8000) != 0;
-				if (Options::Noclip::ToggleType == 1)
+				auto head = character.FindFirstChild("Head");
+				if (head.address != 0)
+					Memory->write<float>(head.address + Offsets::BasePart::Transparency, 0.0f);
+				wasHeadlessEnabled = false;
+			}
+
+			// Infinite Jump
+			if (Options::InfiniteJump::Enabled && humanoid.address != 0)
+			{
+				if (GetAsyncKeyState(VK_SPACE) & 0x8000)
 				{
-					if (isKeyPressed && !wasNoclipKeyPressed)
-						Options::Noclip::Toggled = !Options::Noclip::Toggled;
-					wasNoclipKeyPressed = isKeyPressed;
+					Memory->write<bool>(humanoid.address + Offsets::Humanoid::Jump, true);
+				}
+			}
+
+			// AutoJump
+			if (Options::AutoJump::Enabled && humanoid.address != 0)
+			{
+				Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoJumpEnabled, true);
+				wasAutoJumpEnabled = true;
+			}
+			else if (wasAutoJumpEnabled && humanoid.address != 0)
+			{
+				Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoJumpEnabled, false);
+				wasAutoJumpEnabled = false;
+			}
+
+			// PlatformStand
+			if (Options::PlatformStand::Enabled && humanoid.address != 0)
+			{
+				Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
+				wasPlatformStandEnabled = true;
+			}
+			else if (wasPlatformStandEnabled && humanoid.address != 0)
+			{
+				Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
+				wasPlatformStandEnabled = false;
+			}
+
+			// Noclip
+			if (Options::Noclip::Enabled)
+			{
+				if (Options::Noclip::NoclipKey != 0)
+				{
+					bool isKeyPressed = (GetAsyncKeyState(Options::Noclip::NoclipKey) & 0x8000) != 0;
+					if (Options::Noclip::ToggleType == 1)
+					{
+						if (isKeyPressed && !wasNoclipKeyPressed)
+							Options::Noclip::Toggled = !Options::Noclip::Toggled;
+						wasNoclipKeyPressed = isKeyPressed;
+					}
+					else
+					{
+						Options::Noclip::Toggled = isKeyPressed;
+					}
 				}
 				else
 				{
-					Options::Noclip::Toggled = isKeyPressed;
+					Options::Noclip::Toggled = true;
 				}
 			}
-			else
-			{
-				Options::Noclip::Toggled = true;
-			}
 
-			if (Options::Noclip::Toggled && character.address != 0)
+			bool noclipActive = Options::Noclip::Enabled && Options::Noclip::Toggled;
+			if (!noclipActive && wasNoclipActive)
 			{
 				auto parts = character.GetChildren();
 				for (auto& part : parts)
-				{
-					uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
-					if (primitive)
-					{
-						uint8_t collideFlags = Memory->read<uint8_t>(primitive + Offsets::BasePart::CanCollide);
-						if (collideFlags & 0x8)
-							Memory->write<uint8_t>(primitive + Offsets::BasePart::CanCollide, collideFlags & ~0x8);
+					RestorePartCollision(part);
+			}
+			wasNoclipActive = noclipActive;
 
-						uint8_t queryFlags = Memory->read<uint8_t>(primitive + Offsets::BasePart::CanQuery);
-						if (queryFlags & 0x1)
-							Memory->write<uint8_t>(primitive + Offsets::BasePart::CanQuery, queryFlags & ~0x1);
-					}
+			if (noclipActive)
+			{
+				auto parts = character.GetChildren();
+				for (auto& part : parts)
+					DisablePartCollision(part);
+			}
+
+			// Gravity Modifier
+			if (Options::GravityMod::Enabled && Globals::Roblox::Workspace.address != 0)
+			{
+				if (!wasGravityEnabled)
+				{
+					originalGravity = Memory->read<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity);
+					originalReadOnlyGravity = Memory->read<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity);
+					wasGravityEnabled = true;
+				}
+				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, Options::GravityMod::Value);
+				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, Options::GravityMod::Value);
+			}
+			else if (wasGravityEnabled && Globals::Roblox::Workspace.address != 0)
+			{
+				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, originalGravity);
+				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, originalReadOnlyGravity);
+				wasGravityEnabled = false;
+			}
+
+			// Jump Power Modifier
+			if (Options::JumpPowerMod::Enabled && humanoid.address != 0)
+			{
+				if (!wasJumpPowerEnabled)
+				{
+					originalJumpPower = Memory->read<float>(humanoid.address + Offsets::Humanoid::JumpPower);
+					wasJumpPowerEnabled = true;
+				}
+				Memory->write<float>(humanoid.address + Offsets::Humanoid::JumpPower, Options::JumpPowerMod::Value);
+			}
+			else if (wasJumpPowerEnabled && humanoid.address != 0)
+			{
+				Memory->write<float>(humanoid.address + Offsets::Humanoid::JumpPower, originalJumpPower);
+				wasJumpPowerEnabled = false;
+			}
+
+			// NameOcclusion / Nameplate hiding
+			if (Options::NameOcclusion::Enabled && humanoid.address != 0)
+			{
+				if (!wasNameOcclusionEnabled)
+				{
+					originalNameDisplayDistance = Memory->read<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance);
+					originalHealthDisplayDistance = Memory->read<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance);
+					wasNameOcclusionEnabled = true;
+				}
+
+				if (Options::NameOcclusion::HideNameplates)
+				{
+					Memory->write<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance, -1.0f);
+					Memory->write<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance, -1.0f);
+				}
+				else if (Options::NameOcclusion::NameDisplayDistance > 0.0f)
+				{
+					Memory->write<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance, Options::NameOcclusion::NameDisplayDistance);
+					Memory->write<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance, Options::NameOcclusion::HealthDisplayDistance);
 				}
 			}
-		}
-
-		// Gravity Modifier
-		if (Options::GravityMod::Enabled && Globals::Roblox::Workspace.address != 0)
-		{
-			Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, Options::GravityMod::Value);
-			Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, Options::GravityMod::Value);
-		}
-
-		// Jump Power Modifier
-		if (Options::JumpPowerMod::Enabled && humanoid.address != 0)
-		{
-			Memory->write<float>(humanoid.address + Offsets::Humanoid::JumpPower, Options::JumpPowerMod::Value);
-		}
-
-		// NameOcclusion / Nameplate hiding
-		if (Options::NameOcclusion::Enabled && humanoid.address != 0)
-		{
-			if (Options::NameOcclusion::HideNameplates)
+			else if (wasNameOcclusionEnabled && humanoid.address != 0)
 			{
-				Memory->write<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance, -1.0f);
-				Memory->write<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance, -1.0f);
+				Memory->write<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance, originalNameDisplayDistance);
+				Memory->write<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance, originalHealthDisplayDistance);
+				wasNameOcclusionEnabled = false;
 			}
-			else if (Options::NameOcclusion::NameDisplayDistance > 0.0f)
+
+			// AutoRotate
+			if (Options::AutoRotate::Enabled && humanoid.address != 0)
 			{
-				Memory->write<float>(humanoid.address + Offsets::Humanoid::NameDisplayDistance, Options::NameOcclusion::NameDisplayDistance);
-				Memory->write<float>(humanoid.address + Offsets::Humanoid::HealthDisplayDistance, Options::NameOcclusion::HealthDisplayDistance);
+				Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
 			}
 		}
-
-		// AutoRotate
-		if (Options::AutoRotate::Enabled && humanoid.address != 0)
+		catch (...)
 		{
-			Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
 		}
-
-		std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	}
 }

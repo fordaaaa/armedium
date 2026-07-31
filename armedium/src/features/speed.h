@@ -6,6 +6,8 @@
 
 void SpeedLoop()
 {
+    static bool wasActive = false;
+
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -27,9 +29,12 @@ void SpeedLoop()
                 Options::WalkSpeed::Toggled = isKeyPressed;
             }
         }
+        else
+        {
+            Options::WalkSpeed::Toggled = Options::WalkSpeed::Enabled;
+        }
 
-        if (!Options::WalkSpeed::Enabled)
-            continue;
+        bool active = Options::WalkSpeed::Enabled && Options::WalkSpeed::Toggled;
 
         try
         {
@@ -42,7 +47,16 @@ void SpeedLoop()
             auto humanoid = character.FindFirstChildWhichIsA("Humanoid");
             if (!humanoid.address) continue;
 
-            humanoid.SetWalkspeed(Options::WalkSpeed::Toggled ? Options::WalkSpeed::Speed : 16.0f);
+            if (active)
+            {
+                humanoid.SetWalkspeed(Options::WalkSpeed::Speed);
+                wasActive = true;
+            }
+            else if (wasActive)
+            {
+                humanoid.SetWalkspeed(16.0f);
+                wasActive = false;
+            }
         }
         catch (...)
         {

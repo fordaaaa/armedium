@@ -6,6 +6,7 @@
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
 #include "../overlay/imgui/KeyBind.h"
+#include "wallcheck.h"
 
 inline Vectors::Vector3 GetVelocity(const RobloxInstance& part)
 {
@@ -19,7 +20,7 @@ inline Vectors::Vector3 GetVelocity(const RobloxInstance& part)
 	return Memory->read<Vectors::Vector3>(primitiveAddr + Offsets::BasePart::AssemblyLinearVelocity);
 }
 
-inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
+inline Vectors::Vector3 GetNearestBonePart(const RobloxPlayer& player, RobloxInstance& outPart)
 {
     POINT p;
     GetCursorPos(&p);
@@ -30,9 +31,15 @@ inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
     Vectors::Vector3 bestPos = player.Head.Position();
     RobloxInstance bestPart(0);
 
+    Vectors::Vector3 camPos{};
+    bool needCam = Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled;
+    if (needCam) camPos = WallCheck_GetCameraPosition();
+
     auto tryBone = [&](const RobloxInstance& part) {
         if (!part.address) return;
         Vectors::Vector3 pos3D = part.Position();
+        if (needCam && !IsPointVisible(camPos, pos3D, nullptr, part.address))
+            return;
         Vectors::Vector2 pos2D = WorldToScreen(pos3D);
         if (pos2D.x == -1 && pos2D.y == -1) return;
         float dx = pos2D.x - cursorX;
@@ -68,6 +75,8 @@ inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
         }
     }
 
+    outPart = bestPart;
+
     if (Options::Aimbot::Prediction && bestPart.address != 0) {
         Vectors::Vector3 velocity = GetVelocity(bestPart);
         return Vectors::Vector3{
@@ -80,130 +89,62 @@ inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
     return bestPos;
 }
 
-inline Vectors::Vector3 GetTargetPosition(const RobloxPlayer& player)
+inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
+{
+    RobloxInstance part;
+    return GetNearestBonePart(player, part);
+}
+
+inline RobloxInstance GetTargetBonePart(const RobloxPlayer& player, int boneIdx)
+{
+    switch (boneIdx)
+    {
+        case 0: return player.Head;
+        case 1: return player.HumanoidRootPart;
+        case 2: return (player.RigType == 0) ? player.Left_Arm : player.Left_Hand;
+        case 3: return (player.RigType == 0) ? player.Right_Arm : player.Right_Hand;
+        case 4: return (player.RigType == 0) ? player.Left_Leg : player.Left_Foot;
+        case 5: return (player.RigType == 0) ? player.Right_Leg : player.Right_Foot;
+        case 6: return (player.RigType == 1) ? player.Lower_Torso : player.HumanoidRootPart;
+        case 7: return (player.RigType == 1) ? player.Upper_Torso : player.HumanoidRootPart;
+        default: return player.Head;
+    }
+}
+
+inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance& outPart, Vectors::Vector3& outPos)
 {
     if (Options::Aimbot::NearestAim)
-        return GetNearestBonePosition(player);
+    {
+        outPos = GetNearestBonePart(player, outPart);
+        return;
+    }
 
-    Vectors::Vector3 basePos;
-    RobloxInstance targetPart(0);
-    
-    // Check if player is in air (Y velocity > 1 or < -1)
     Vectors::Vector3 velocity = GetVelocity(player.HumanoidRootPart);
     bool isInAir = (velocity.y > 1.0f || velocity.y < -1.0f);
-    
-    // Use air target bone if player is in air, otherwise use normal target bone
+
     int boneToUse = isInAir ? Options::Aimbot::AirTargetBone : Options::Aimbot::TargetBone;
-    
-    switch (boneToUse)
+
+    outPart = GetTargetBonePart(player, boneToUse);
+    if (!outPart.address)
+        outPart = player.Head;
+
+    outPos = outPart.Position();
+
+    if (Options::Aimbot::Prediction && outPart.address != 0)
     {
-        case 0: // Head
-            targetPart = player.Head;
-            basePos = player.Head.Position();
-            break;
-        case 1: // Torso/HumanoidRootPart
-            targetPart = player.HumanoidRootPart;
-            basePos = player.HumanoidRootPart.Position();
-            break;
-        case 2: // Left Arm
-            if (player.RigType == 0)
-            {
-                targetPart = player.Left_Arm;
-                basePos = player.Left_Arm.Position();
-            }
-            else
-            {
-                targetPart = player.Left_Hand;
-                basePos = player.Left_Hand.Position();
-            }
-            break;
-        case 3: // Right Arm
-            if (player.RigType == 0)
-            {
-                targetPart = player.Right_Arm;
-                basePos = player.Right_Arm.Position();
-            }
-            else
-            {
-                targetPart = player.Right_Hand;
-                basePos = player.Right_Hand.Position();
-            }
-            break;
-        case 4: // Left Leg
-            if (player.RigType == 0)
-            {
-                targetPart = player.Left_Leg;
-                basePos = player.Left_Leg.Position();
-            }
-            else
-            {
-                targetPart = player.Left_Foot;
-                basePos = player.Left_Foot.Position();
-            }
-            break;
-        case 5: // Right Leg
-            if (player.RigType == 0)
-            {
-                targetPart = player.Right_Leg;
-                basePos = player.Right_Leg.Position();
-            }
-            else
-            {
-                targetPart = player.Right_Foot;
-                basePos = player.Right_Foot.Position();
-            }
-            break;
-        case 6: // Lower Torso
-            if (player.RigType == 1) // R15 only
-            {
-                targetPart = player.Lower_Torso;
-                basePos = player.Lower_Torso.Position();
-            }
-            else
-            {
-                targetPart = player.HumanoidRootPart;
-                basePos = player.HumanoidRootPart.Position();
-            }
-            break;
-        case 7: // Upper Torso
-            if (player.RigType == 1) // R15 only
-            {
-                targetPart = player.Upper_Torso;
-                basePos = player.Upper_Torso.Position();
-            }
-            else
-            {
-                targetPart = player.HumanoidRootPart;
-                basePos = player.HumanoidRootPart.Position();
-            }
-            break;
-        default:
-            targetPart = player.Head;
-            basePos = player.Head.Position();
-            break;
+        Vectors::Vector3 v = GetVelocity(outPart);
+        outPos.x += v.x / Options::Aimbot::PredictionX;
+        outPos.y += v.y / Options::Aimbot::PredictionY;
+        outPos.z += v.z / Options::Aimbot::PredictionX;
     }
-    
-    // Apply prediction if enabled
-    if (Options::Aimbot::Prediction && targetPart.address != 0)
-    {
-        Vectors::Vector3 velocity = GetVelocity(targetPart);
-        
-        // Divide velocity by prediction factors (higher value = less prediction)
-        Vectors::Vector3 predictionOffset = {
-            velocity.x / Options::Aimbot::PredictionX,
-            velocity.y / Options::Aimbot::PredictionY,
-            velocity.z / Options::Aimbot::PredictionX
-        };
-        
-        // Add prediction offset to base position
-        return Vectors::Vector3{
-            basePos.x + predictionOffset.x,
-            basePos.y + predictionOffset.y,
-            basePos.z + predictionOffset.z
-        };
-    }
-    
-    return basePos;
+}
+
+inline Vectors::Vector3 GetTargetPosition(const RobloxPlayer& player)
+{
+    RobloxInstance part;
+    Vectors::Vector3 pos;
+    GetTargetBoneAndPosition(player, part, pos);
+    return pos;
 }
 
 inline RobloxPlayer GetClosestPlayer()
@@ -221,6 +162,10 @@ inline RobloxPlayer GetClosestPlayer()
 
     POINT p;
     GetCursorPos(&p);
+
+    Vectors::Vector3 camPos{};
+    bool needCam = Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled;
+    if (needCam) camPos = WallCheck_GetCameraPosition();
 
     for (auto& player : Globals::Caches::CachedPlayerObjects)
     {
@@ -242,7 +187,16 @@ inline RobloxPlayer GetClosestPlayer()
         if (player.Health > 0 && player.Health <= 5.0f && Options::Aimbot::DownedCheck)
             continue;
 
-        auto targetPos = GetTargetPosition(player);
+        RobloxInstance targetPart;
+        Vectors::Vector3 targetPos;
+        if (Options::Aimbot::NearestAim)
+            targetPos = GetNearestBonePart(player, targetPart);
+        else
+            GetTargetBoneAndPosition(player, targetPart, targetPos);
+
+        if (needCam && !IsPointVisible(camPos, targetPos, nullptr, targetPart.address))
+            continue;
+
         auto targetPos2D = WorldToScreen(targetPos);
 
         if (targetPos2D.x == -1 && targetPos2D.y == -1)
@@ -624,12 +578,21 @@ inline void RunAimbot(ImDrawList* drawList)
         }
         else
         {
-            // Check if current target is still within range
-            auto targetPos = GetTargetPosition(Options::Aimbot::CurrentTarget);
-            Vectors::Vector3 diff = targetPos - localHRP.Position();
+            // Check if current target is still within range and visible
+            RobloxInstance curPart;
+            Vectors::Vector3 curPos;
+            GetTargetBoneAndPosition(Options::Aimbot::CurrentTarget, curPart, curPos);
+            Vectors::Vector3 diff = curPos - localHRP.Position();
             float distance3D = diff.Magnitude();
-            
-            if (distance3D > Options::Aimbot::Range)
+
+            bool keep = distance3D <= Options::Aimbot::Range;
+            if (keep && Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled)
+            {
+                Vectors::Vector3 camPos = WallCheck_GetCameraPosition();
+                keep = IsPointVisible(camPos, curPos, nullptr, curPart.address);
+            }
+
+            if (!keep)
             {
                 Options::Aimbot::CurrentTarget = GetClosestPlayer();
             }

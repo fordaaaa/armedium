@@ -19,10 +19,8 @@ inline void RenderCrosshair(ImDrawList* drawList)
     float time = (float)ImGui::GetTime();
     float dt = ImGui::GetIO().DeltaTime;
     
-    // Get mouse cursor position
-    POINT cursorPos;
-    GetCursorPos(&cursorPos);
-    ImVec2 center = ImVec2(static_cast<float>(cursorPos.x), static_cast<float>(cursorPos.y));
+    // Get mouse cursor position (overlay-relative, matches the draw list space)
+    ImVec2 center = ImGui::GetIO().MousePos;
 
     // Style handling
     if (Options::Crosshair::Style != lastStyle) {

@@ -5,6 +5,7 @@
 #include "../rbx/globals/globals.h"
 #include <windows.h>
 #include <chrono>
+#include "wallcheck.h"
 
 inline void RenderAdvancedFOV(ImDrawList* drawList)
 {
@@ -209,6 +210,10 @@ inline void RunTriggerbot()
 
     Vectors::Vector2 cursorPos = { static_cast<float>(p.x), static_cast<float>(p.y) };
 
+    Vectors::Vector3 camPos{};
+    bool needCam = Options::Triggerbot::VisibleOnly && Options::WallCheck::Enabled;
+    if (needCam) camPos = WallCheck_GetCameraPosition();
+
     // Check each player
     for (auto& player : Globals::Caches::CachedPlayerObjects)
     {
@@ -246,7 +251,10 @@ inline void RunTriggerbot()
 
             Vectors::Vector3 partPos = part.Position();
             sCFrame partCFrame = part.CFrame();
-            
+
+            if (needCam && !IsPointVisible(camPos, partPos, nullptr, part.address))
+                return false;
+
             if (!Options::Triggerbot::AdvancedFOV)
             {
                 // Legacy mode: simple circular radius check

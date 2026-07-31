@@ -41,6 +41,29 @@ namespace Options
 		inline float HitboxTransparency = 0.5f;
 		inline bool WalkThrough = false;
 	}
+	namespace PartChams
+	{
+		inline bool Enabled = false;
+		inline bool OnlyWhenMenuClosed = true;
+		inline bool TeamCheck = false;
+		inline bool Filled = false;
+		inline float Alpha = 1.0f;
+		inline float Thickness = 1.5f;
+		inline int PartSelect = 0; // 0=Head, 1=Torso, 2=Arms, 3=Legs, 4=All
+		inline float Color[3] = {0.3f, 1.0f, 0.6f};
+	}
+	namespace HitboxChams
+	{
+		inline bool Enabled = false;
+		inline bool OnlyWhenMenuClosed = true;
+		inline bool TeamCheck = false;
+		inline bool Filled = false;
+		inline bool HighlightTarget = true;
+		inline float Alpha = 1.0f;
+		inline float Thickness = 1.5f;
+		inline int PartSelect = 0; // reuses aimbot's part enum (0-7)
+		inline float Color[3] = {1.0f, 0.4f, 0.4f};
+	}
 	namespace ESP
 	{
 		inline bool TeamCheck = false;
@@ -133,8 +156,19 @@ namespace Options
 		inline bool NearestChest = true;
 		inline bool NearestLegs = true;
 
+		inline bool VisibleOnly = false;
+
 		inline RobloxPlayer CurrentTarget;
 		inline bool Toggled = false;
+	}
+	namespace WallCheck
+	{
+		inline bool Enabled = false;
+		inline int RefreshMs = 500;
+		inline int MaxDepth = 6;
+		inline int MaxParts = 1500;
+		inline bool SelfOcclusion = false;
+		inline bool PlayerOcclusion = true;
 	}
 	namespace Triggerbot
 	{
@@ -147,7 +181,9 @@ namespace Options
 		inline float Radius = 15.f;
 		inline float Range = 100.f;
 		inline int Delay = 50;
-		
+
+		inline bool VisibleOnly = false;
+
 		inline bool AdvancedFOV = false;
 		inline bool ShowAdvancedFOV = false;
 		
@@ -310,6 +346,7 @@ namespace Options
 		inline float FOV = 100.0f;
 		inline float Range = 1000.0f;
 		inline int TargetBone = 0;   // reuses aimbot's part enum
+		inline bool VisibleOnly = false;
 		inline bool Prediction = false;
 		inline float PredictionX = 1.0f;
 		inline float PredictionY = 1.0f;

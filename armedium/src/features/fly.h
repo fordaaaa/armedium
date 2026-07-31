@@ -6,7 +6,7 @@
 
 void FlyLoop()
 {
-    static bool wasToggled = false;
+    static bool wasActive = false;
 
     while (true)
     {
@@ -27,9 +27,12 @@ void FlyLoop()
                 Options::Fly::Toggled = isPressed;
             }
         }
+        else
+        {
+            Options::Fly::Toggled = Options::Fly::Enabled;
+        }
 
-        if (!Options::Fly::Enabled)
-            continue;
+        bool active = Options::Fly::Enabled && Options::Fly::Toggled;
 
         try
         {
@@ -45,57 +48,53 @@ void FlyLoop()
             auto humanoidRootPart = character.FindFirstChild("HumanoidRootPart");
             if (!humanoidRootPart.address) continue;
 
-            auto camera = Globals::Roblox::Camera;
-            if (!camera.address) continue;
-
-            auto camCFrame = camera.CFrame();
-            Vectors::Vector3 forward(-camCFrame.r02, -camCFrame.r12, -camCFrame.r22);
-            Vectors::Vector3 right(camCFrame.r00, camCFrame.r10, camCFrame.r20);
-
             uintptr_t primitive = Memory->read<uintptr_t>(humanoidRootPart.address + Offsets::BasePart::Primitive);
             if (!primitive) continue;
 
-            if (Options::Fly::Toggled)
+            if (active)
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
-                wasToggled = true;
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
 
-                float speed = Options::Fly::Speed;
-
-                Vectors::Vector3 moveDir(0, 0, 0);
-                if (GetAsyncKeyState('W') & 0x8000) moveDir = moveDir + forward;
-                if (GetAsyncKeyState('S') & 0x8000) moveDir = moveDir - forward;
-                if (GetAsyncKeyState('A') & 0x8000) moveDir = moveDir - right;
-                if (GetAsyncKeyState('D') & 0x8000) moveDir = moveDir + right;
-
-                if (GetAsyncKeyState(VK_SPACE) & 0x8000)
-                    moveDir.y += 1.0f;
-                if (GetAsyncKeyState(VK_SHIFT) & 0x8000)
-                    moveDir.y -= 1.0f;
-
-                float mag = moveDir.Magnitude();
-                Vectors::Vector3 velocity(0, 0, 0);
-                if (mag > 0)
+                auto camera = Globals::Roblox::Camera;
+                if (camera.address)
                 {
-                    velocity = moveDir * (speed / mag);
+                    auto camCFrame = camera.CFrame();
+                    Vectors::Vector3 forward = camCFrame.GetLookVector();
+                    Vectors::Vector3 right = camCFrame.GetRightVector();
+                    forward.y = 0.0f;
+                    right.y = 0.0f;
+                    forward = forward.Normalize();
+                    right = right.Normalize();
 
-                    Vectors::Vector3 angVel(
-                        (right.cross(moveDir.Normalize() * speed)).x * 0.01f,
-                        (forward.cross(moveDir.Normalize() * speed)).y * 0.01f,
-                        (right.cross(moveDir.Normalize() * speed)).z * 0.01f
-                    );
-                    Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
+                    Vectors::Vector3 moveDir(0, 0, 0);
+                    if (GetAsyncKeyState('W') & 0x8000) moveDir = moveDir + forward;
+                    if (GetAsyncKeyState('S') & 0x8000) moveDir = moveDir - forward;
+                    if (GetAsyncKeyState('A') & 0x8000) moveDir = moveDir - right;
+                    if (GetAsyncKeyState('D') & 0x8000) moveDir = moveDir + right;
+                    if (GetAsyncKeyState(VK_SPACE) & 0x8000) moveDir.y += 1.0f;
+                    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) moveDir.y -= 1.0f;
+
+                    float mag = moveDir.Magnitude();
+                    Vectors::Vector3 velocity(0, 0, 0);
+                    if (mag > 0.01f)
+                        velocity = moveDir * (Options::Fly::Speed / mag);
+                    else
+                        velocity = Vectors::Vector3(0, 3.0f, 0);
+
+                    Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, velocity);
                 }
 
-                Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity, velocity);
+                wasActive = true;
             }
-            else if (wasToggled)
+            else if (wasActive)
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
                 Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
-                wasToggled = false;
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
+                wasActive = false;
             }
         }
         catch (...)

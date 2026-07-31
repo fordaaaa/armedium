@@ -3,11 +3,13 @@
 #include "../rbx/globals/options.h"
 #include <thread>
 #include <chrono>
+#include <vector>
 
 void FlingLoop()
 {
-    static bool wasToggled = false;
+    static bool wasActive = false;
     static std::vector<uintptr_t> disabledCollisionParts;
+    static uintptr_t disabledCharAddr = 0;
 
     auto setPartCollision = [](const RobloxInstance& part, bool enabled) {
         if (!part.address) return;
@@ -46,9 +48,12 @@ void FlingLoop()
                 Options::Fling::Toggled = isPressed;
             }
         }
+        else
+        {
+            Options::Fling::Toggled = Options::Fling::Enabled;
+        }
 
-        if (!Options::Fling::Enabled)
-            continue;
+        bool active = Options::Fling::Enabled && Options::Fling::Toggled;
 
         try
         {
@@ -67,9 +72,12 @@ void FlingLoop()
             uintptr_t primitive = Memory->read<uintptr_t>(humanoidRootPart.address + Offsets::BasePart::Primitive);
             if (!primitive) continue;
 
-            if (Options::Fling::Toggled)
+            if (active)
             {
-                if (!wasToggled)
+                Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
+                Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
+
+                if (character.address != disabledCharAddr)
                 {
                     auto parts = character.GetChildren();
                     for (auto& part : parts)
@@ -77,11 +85,10 @@ void FlingLoop()
                         setPartCollision(part, false);
                         disabledCollisionParts.push_back(part.address);
                     }
+                    disabledCharAddr = character.address;
                 }
 
-                Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
-                Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
-                wasToggled = true;
+                wasActive = true;
 
                 if (Options::Fling::TargetFling && Options::Fling::TargetPlayerIndex >= 0)
                 {
@@ -96,7 +103,7 @@ void FlingLoop()
                             Vectors::Vector3 targetPos = target.HumanoidRootPart.Position();
                             Vectors::Vector3 dir = (targetPos - myPos).Normalize();
                             Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
-                            Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity, dir * Options::Fling::Speed);
+                            Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, dir * Options::Fling::Speed);
                             continue;
                         }
                     }
@@ -104,16 +111,15 @@ void FlingLoop()
 
                 Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity,
                     Vectors::Vector3(Options::Fling::Speed * 0.1f, Options::Fling::Speed, Options::Fling::Speed * 0.1f));
-
-                Vectors::Vector3 pos = Memory->read<Vectors::Vector3>(primitive + Offsets::Primitive::Position);
-                Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity,
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity,
                     Vectors::Vector3(0, 0, 0));
             }
-            else if (wasToggled)
+            else if (wasActive)
             {
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
+                Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
                 Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
-                Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
 
                 for (auto addr : disabledCollisionParts)
                 {
@@ -121,7 +127,8 @@ void FlingLoop()
                     setPartCollision(part, true);
                 }
                 disabledCollisionParts.clear();
-                wasToggled = false;
+                disabledCharAddr = 0;
+                wasActive = false;
             }
         }
         catch (...)
@@ -155,12 +162,9 @@ void AntiFlingLoop()
                     uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
                     if (primitive)
                     {
-                        uint8_t collideFlags = Memory->read<uint8_t>(primitive + Offsets::BasePart::CanCollide);
-                        if (collideFlags & 0x8)
-                            Memory->write<uint8_t>(primitive + Offsets::BasePart::CanCollide, collideFlags & ~0x8);
-                        uint8_t queryFlags = Memory->read<uint8_t>(primitive + Offsets::BasePart::CanQuery);
-                        if (queryFlags & 0x1)
-                            Memory->write<uint8_t>(primitive + Offsets::BasePart::CanQuery, queryFlags & ~0x1);
+                        uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
+                        flags &= ~(Offsets::PrimitiveFlags::CanCollide | Offsets::PrimitiveFlags::CanQuery | Offsets::PrimitiveFlags::CanTouch);
+                        Memory->write<uint8_t>(primitive + Offsets::Primitive::Flags, flags);
                     }
                 }
             }
@@ -174,7 +178,7 @@ void AntiFlingLoop()
 
                 Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity,
                     Vectors::Vector3(0, 0, 0));
-                Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::AssemblyLinearVelocity,
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity,
                     Vectors::Vector3(0, 0, 0));
             }
         }

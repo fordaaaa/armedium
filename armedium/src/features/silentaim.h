@@ -1,12 +1,15 @@
 #pragma once
 #include <cstdint>
 #include <Windows.h>
+#include <thread>
+#include <chrono>
 #include "../overlay/utils/W2S.h"
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
 #include "../rbx/math/math.h"
 #include "../overlay/imgui/KeyBind.h"
-#include "aimbot.h" // reuse GetTargetPosition, GetVelocity
+#include "aimbot.h" // reuse GetVelocity
+#include "wallcheck.h"
 
 inline RobloxInstance SilentAim_GetTargetPart(const RobloxPlayer& player, int boneIdx)
 {
@@ -61,6 +64,10 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
     POINT p;
     GetCursorPos(&p);
 
+    Vectors::Vector3 camPos{};
+    bool needCam = Options::SilentAim::VisibleOnly && Options::WallCheck::Enabled;
+    if (needCam) camPos = WallCheck_GetCameraPosition();
+
     for (auto& player : Globals::Caches::CachedPlayerObjects)
     {
         if (!player.HumanoidRootPart.address)
@@ -76,6 +83,12 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
             continue;
 
         Vectors::Vector3 aimPos = SilentAim_GetAimPos(player);
+        if (needCam)
+        {
+            RobloxInstance aimPart = SilentAim_GetTargetPart(player, Options::SilentAim::TargetBone);
+            if (!IsPointVisible(camPos, aimPos, nullptr, aimPart.address))
+                continue;
+        }
         auto aimPos2D = WorldToScreen(aimPos);
         if (aimPos2D.x == -1 && aimPos2D.y == -1)
             continue;
@@ -95,46 +108,8 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
     return target;
 }
 
-inline void RunSilentAim()
+inline void SilentAim_Apply(const RobloxPlayer& target)
 {
-    if (!Options::SilentAim::Enabled)
-        return;
-
-    // Key handling (mirrors aimbot pattern)
-    static bool wasKeyPressed = false;
-    bool isKeyPressed = (Options::SilentAim::Key != 0) &&
-        ((GetAsyncKeyState(Options::SilentAim::Key) & 0x8000) != 0);
-
-    if (Options::SilentAim::ToggleType == 1)
-    {
-        if (isKeyPressed && !wasKeyPressed)
-            Options::SilentAim::Toggled = !Options::SilentAim::Toggled;
-        wasKeyPressed = isKeyPressed;
-        if (!Options::SilentAim::Toggled)
-        {
-            Options::SilentAim::CurrentTarget = 0;
-            return;
-        }
-    }
-    else
-    {
-        // Hold mode: only active while key held (or when Key==0, always active)
-        if (Options::SilentAim::Key != 0 && !isKeyPressed)
-        {
-            Options::SilentAim::CurrentTarget = 0;
-            Options::SilentAim::Toggled = false;
-            return;
-        }
-    }
-
-    RobloxPlayer target = SilentAim_GetClosestPlayer();
-    if (target.address == 0)
-    {
-        Options::SilentAim::CurrentTarget = 0;
-        return;
-    }
-
-    Options::SilentAim::CurrentTarget = target.address;
     RobloxInstance targetPart = SilentAim_GetTargetPart(target, Options::SilentAim::TargetBone);
     if (!targetPart.address)
         return;
@@ -144,47 +119,45 @@ inline void RunSilentAim()
     Vectors::Vector3 camPos = Memory->read<Vectors::Vector3>(
         Globals::Roblox::Camera.address + Offsets::Camera::Position);
 
-    // Method 0: PlayerMouse.Hit + Target overwrite (stable)
+    float aimDist = (aimPos - camPos).Magnitude();
+    if (aimDist < 0.001f)
+        return;
+
+    // Visibility gate: never spoof while the target part is behind a wall
+    if (Options::SilentAim::VisibleOnly && Options::WallCheck::Enabled &&
+        !IsPointVisible(camPos, aimPos, nullptr, targetPart.address))
+        return;
+
+    uintptr_t mouseAddr = Memory->read<uintptr_t>(
+        Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
+    if (!mouseAddr)
+        return;
+
+    // Method 0: PlayerMouse.Hit + Target overwrite (stable, reliable default)
     if (Options::SilentAim::Method == 0)
     {
-        uintptr_t mouseAddr = Memory->read<uintptr_t>(
-            Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
-        if (mouseAddr)
-        {
-            sCFrame hitCFrame = LookAt(camPos, aimPos);
+        sCFrame hitCFrame = LookAt(camPos, aimPos);
 
-            Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
-            Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
-        }
+        Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
+        Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
     }
 
-    // Method 1: Camera raycast write to UnitRay + Hit + Target
+    // Method 1: also overwrite UnitRay (Ray = origin Vector3 + direction Vector3)
     if (Options::SilentAim::Method == 1)
     {
-        uintptr_t mouseAddr = Memory->read<uintptr_t>(
-            Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
-        if (mouseAddr)
-        {
-            Vectors::Vector3 dir = aimPos - camPos;
-            float len = dir.Magnitude();
-            if (len > 0.0001f)
-            {
-                dir.x /= len;
-                dir.y /= len;
-                dir.z /= len;
-            }
+        Vectors::Vector3 dir = aimPos - camPos;
+        dir = dir * (1.0f / aimDist);
 
-            sCFrame hitCFrame = LookAt(camPos, aimPos);
+        sCFrame hitCFrame = LookAt(camPos, aimPos);
 
-            Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
-            Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
-            Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay, camPos);
-            Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay + 0xc, dir);
-        }
+        Memory->write<sCFrame>(mouseAddr + Offsets::PlayerMouse::Hit, hitCFrame);
+        Memory->write<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target, targetPart.address);
+        Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay, camPos);
+        Memory->write<Vectors::Vector3>(mouseAddr + Offsets::PlayerMouse::UnitRay + 0xc, dir);
     }
 
     // Hitbox on Fire: inflate target part briefly on left-mouse rising edge
-    if (Options::SilentAim::HitboxOnFire && targetPart.address != 0)
+    if (Options::SilentAim::HitboxOnFire)
     {
         static bool prevMouseDown = false;
         static uintptr_t inflatedPrimitive = 0;
@@ -217,6 +190,60 @@ inline void RunSilentAim()
                 Memory->write<Vectors::Vector3>(inflatedPrimitive + Offsets::BasePart::Size, origSize);
                 inflatedPrimitive = 0;
             }
+        }
+    }
+}
+
+inline void RunSilentAim()
+{
+    while (true)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        if (!Options::SilentAim::Enabled)
+            continue;
+
+        try
+        {
+            // Key handling (mirrors aimbot pattern)
+            static bool wasKeyPressed = false;
+            bool isKeyPressed = (Options::SilentAim::Key != 0) &&
+                ((GetAsyncKeyState(Options::SilentAim::Key) & 0x8000) != 0);
+
+            if (Options::SilentAim::ToggleType == 1)
+            {
+                if (isKeyPressed && !wasKeyPressed)
+                    Options::SilentAim::Toggled = !Options::SilentAim::Toggled;
+                wasKeyPressed = isKeyPressed;
+                if (!Options::SilentAim::Toggled)
+                {
+                    Options::SilentAim::CurrentTarget = 0;
+                    continue;
+                }
+            }
+            else
+            {
+                // Hold mode: only active while key held (or when Key==0, always active)
+                if (Options::SilentAim::Key != 0 && !isKeyPressed)
+                {
+                    Options::SilentAim::CurrentTarget = 0;
+                    Options::SilentAim::Toggled = false;
+                    continue;
+                }
+            }
+
+            RobloxPlayer target = SilentAim_GetClosestPlayer();
+            if (target.address == 0)
+            {
+                Options::SilentAim::CurrentTarget = 0;
+                continue;
+            }
+
+            Options::SilentAim::CurrentTarget = target.address;
+            SilentAim_Apply(target);
+        }
+        catch (...)
+        {
         }
     }
 }

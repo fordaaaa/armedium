@@ -1,14 +1,50 @@
 #pragma once
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
+#include <map>
 #include <thread>
 
 inline void RunHitboxExpander()
 {
+    struct ExpandedPart
+    {
+        uintptr_t primitive;
+        Vectors::Vector3 originalSize;
+        float originalTransparency;
+        Vectors::Vector3 writtenSize;
+        float writtenTransparency;
+    };
+    static std::map<uintptr_t, ExpandedPart> expandedParts; // key = HRP instance address
+    static bool wasEnabled = false;
+
+    auto restorePart = [](const std::pair<const uintptr_t, ExpandedPart>& entry) {
+        const uintptr_t hrpAddr = entry.first;
+        const ExpandedPart& data = entry.second;
+
+        Vectors::Vector3 currentSize = Memory->read<Vectors::Vector3>(data.primitive + Offsets::BasePart::Size);
+        if ((currentSize - data.writtenSize).Magnitude() < 0.01f)
+            Memory->write<Vectors::Vector3>(data.primitive + Offsets::BasePart::Size, data.originalSize);
+
+        float currentTransparency = Memory->read<float>(hrpAddr + Offsets::BasePart::Transparency);
+        if (fabsf(currentTransparency - data.writtenTransparency) < 0.01f)
+            Memory->write<float>(hrpAddr + Offsets::BasePart::Transparency, data.originalTransparency);
+    };
+
     while (true)
     {
         try
         {
+            if (Options::HitboxExpander::Enabled != wasEnabled)
+            {
+                wasEnabled = Options::HitboxExpander::Enabled;
+                if (!wasEnabled)
+                {
+                    for (const auto& entry : expandedParts)
+                        restorePart(entry);
+                    expandedParts.clear();
+                }
+            }
+
             if (!Options::HitboxExpander::Enabled)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -43,46 +79,53 @@ inline void RunHitboxExpander()
                     continue;
 
                 // Set hitbox size (horizontal for X/Z, vertical for Y)
+                Vectors::Vector3 currentSize = Memory->read<Vectors::Vector3>(primitive + Offsets::BasePart::Size);
                 Vectors::Vector3 newSize = { 
                     Options::HitboxExpander::HorizontalSize, 
                     Options::HitboxExpander::VerticalSize, 
                     Options::HitboxExpander::HorizontalSize 
                 };
+                float newTransparency = Options::HitboxExpander::ShowHitbox
+                    ? Options::HitboxExpander::HitboxTransparency
+                    : 1.0f;
+
+                // Remember the original state the first time we touch this part
+                auto it = expandedParts.find(hrp.address);
+                if (it == expandedParts.end())
+                {
+                    if (currentSize.Magnitude() > 0.01f)
+                    {
+                        float currentTransparency = Memory->read<float>(hrp.address + Offsets::BasePart::Transparency);
+                        expandedParts[hrp.address] = { primitive, currentSize, currentTransparency, newSize, newTransparency };
+                    }
+                }
+                else
+                {
+                    it->second.writtenSize = newSize;
+                    it->second.writtenTransparency = newTransparency;
+                }
+
                 Memory->write<Vectors::Vector3>(primitive + Offsets::BasePart::Size, newSize);
 
-                // Set CanCollide using proper bit manipulation (from primitive, not hrp)
-                const uintptr_t canCollideAddr = primitive + Offsets::BasePart::CanCollide;
-                uint8_t currentFlags = Memory->read<uint8_t>(canCollideAddr);
-                constexpr uint8_t canCollideBit = 0x8;
-                
-                if (!Options::HitboxExpander::WalkThrough)
-                {
-                    // Enable collision - set bit
-                    if (!(currentFlags & canCollideBit))
-                    {
-                        uint8_t newFlags = currentFlags | canCollideBit;
-                        Memory->write<uint8_t>(canCollideAddr, newFlags);
-                    }
-                }
+                // Collision flags live in the primitive flags byte
+                uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
+                if (Options::HitboxExpander::WalkThrough)
+                    flags &= ~Offsets::PrimitiveFlags::CanCollide;
                 else
-                {
-                    // Disable collision (walk through) - clear bit
-                    if (currentFlags & canCollideBit)
-                    {
-                        uint8_t newFlags = currentFlags & ~canCollideBit;
-                        Memory->write<uint8_t>(canCollideAddr, newFlags);
-                    }
-                }
+                    flags |= Offsets::PrimitiveFlags::CanCollide;
+                Memory->write<uint8_t>(primitive + Offsets::Primitive::Flags, flags);
 
-                // Set transparency if show hitbox is enabled
-                if (Options::HitboxExpander::ShowHitbox)
-                {
-                    Memory->write<float>(hrp.address + Offsets::BasePart::Transparency, Options::HitboxExpander::HitboxTransparency);
-                }
+                Memory->write<float>(hrp.address + Offsets::BasePart::Transparency, newTransparency);
+            }
+
+            // Prune entries whose part no longer exists (stale memory reads back as zero size)
+            for (auto it = expandedParts.begin(); it != expandedParts.end(); )
+            {
+                Vectors::Vector3 currentSize = Memory->read<Vectors::Vector3>(it->second.primitive + Offsets::BasePart::Size);
+                if (currentSize.Magnitude() <= 0.01f)
+                    it = expandedParts.erase(it);
                 else
-                {
-                    Memory->write<float>(hrp.address + Offsets::BasePart::Transparency, 1.0f); // Fully transparent
-                }
+                    ++it;
             }
         }
         catch (...)

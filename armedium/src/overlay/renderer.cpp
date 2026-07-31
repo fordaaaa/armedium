@@ -513,10 +513,10 @@ void ShowImgui()
                     };
 
                     // ============ TAB CONTENT ============
-                    static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox" };
-                    static const char* visSubtabNames[] = { "ESP", "Colours" };
+                    static const char* aimSubtabNames[] = { "Aimbot", "Triggerbot", "Hitbox", "Silent Aim" };
+                    static const char* visSubtabNames[] = { "ESP", "Colours", "Part Chams", "Hitbox Chams" };
                     static const char* moveSubtabNames[] = { "Fly", "WalkSpeed", "Fling", "Teleport" };
-                    static const char* miscSubtabNames[] = { "Local", "Silent Aim", "Config" };
+                    static const char* miscSubtabNames[] = { "Local", "Config" };
 
                     auto renderSubtabBar = [&](const char** names, int count) {
                         ImGui::BeginGroup();
@@ -551,7 +551,7 @@ void ShowImgui()
 
                     if (tab == 0)
                     {
-                        renderSubtabBar(aimSubtabNames, 3);
+                        renderSubtabBar(aimSubtabNames, 4);
                         ImGui::Dummy(ImVec2(0, 6));
 
                         if (tab2 == 0)
@@ -577,6 +577,7 @@ void ShowImgui()
                                 ImGui::Checkbox("Legs", &Options::Aimbot::NearestLegs);
                                 ImGui::Unindent(14.0f);
                             }
+                            ImGui::Checkbox("Visible Only", &Options::Aimbot::VisibleOnly);
                             ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 8));
@@ -729,6 +730,7 @@ void ShowImgui()
                             ImGui::Checkbox("Advanced FOV", &Options::Triggerbot::AdvancedFOV);
                             if (Options::Triggerbot::AdvancedFOV)
                                 ImGui::Checkbox("Show FOV", &Options::Triggerbot::ShowAdvancedFOV);
+                            ImGui::Checkbox("Visible Only", &Options::Triggerbot::VisibleOnly);
                             ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 8));
@@ -825,10 +827,61 @@ void ShowImgui()
                         }
                         endStyledChild();
                     }
+                    else if (tab2 == 3)
+                    {
+                        beginStyledChild("##silentMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Enabled", &Options::SilentAim::Enabled);
+                            ImGui::Checkbox("Team Check", &Options::SilentAim::TeamCheck);
+                            ImGui::Checkbox("Downed Check", &Options::SilentAim::DownedCheck);
+                            ImGui::Checkbox("Prediction", &Options::SilentAim::Prediction);
+                            ImGui::Checkbox("Hitbox on Fire", &Options::SilentAim::HitboxOnFire);
+                            ImGui::Checkbox("Visible Only", &Options::SilentAim::VisibleOnly);
+                            ImGui::PopStyleColor(1);
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##silentSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::SliderFloat("FOV", &Options::SilentAim::FOV, 1.f, 500.f, "%.0f");
+                            ImGui::SliderFloat("Range", &Options::SilentAim::Range, 10.f, 1000.f, "%.0f");
+                            if (Options::SilentAim::Prediction)
+                            {
+                                ImGui::SliderFloat("Prediction X", &Options::SilentAim::PredictionX, 0.1f, 10.f, "%.1f");
+                                ImGui::SliderFloat("Prediction Y", &Options::SilentAim::PredictionY, 0.1f, 10.f, "%.1f");
+                            }
+                            if (Options::SilentAim::HitboxOnFire)
+                            {
+                                ImGui::SliderFloat("Hitbox Mult", &Options::SilentAim::HitboxMult, 1.f, 20.f, "%.1f");
+                                ImGui::SliderInt("Hitbox Frames", &Options::SilentAim::HitboxFrames, 1, 10);
+                            }
+                            ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 6));
+                            const char* aimMethods[] = { "Mouse Hit (Stable)", "Unit Ray (Unstable)" };
+                            ImGui::Combo("Method", &Options::SilentAim::Method, aimMethods, 2);
+                            KeybindSelector(" Silent Key", &Options::SilentAim::Key);
+
+                            ImGui::Dummy(ImVec2(0, 8));
+                            ImGui::Separator();
+                            ImGui::Checkbox("Wall Check (Visibility)", &Options::WallCheck::Enabled);
+                            if (Options::WallCheck::Enabled)
+                            {
+                                ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                                ImGui::SliderInt("Refresh (ms)", &Options::WallCheck::RefreshMs, 100, 3000, "%d");
+                                ImGui::PopStyleColor(1);
+                            }
+                        }
+                        endStyledChild();
+                    }
                 }
                 else if (tab == 1)
                 {
-                    renderSubtabBar(visSubtabNames, 2);
+                    renderSubtabBar(visSubtabNames, 4);
                     ImGui::Dummy(ImVec2(0, 6));
 
                     if (tab2 == 0)
@@ -888,6 +941,61 @@ void ShowImgui()
                                 main_color = ImVec4(Options::Misc::MenuAccentColor[0], Options::Misc::MenuAccentColor[1], Options::Misc::MenuAccentColor[2], 1.0f);
                             }
                             ImGui::ColorEdit4("FOV Fill Color", Options::Aimbot::FOVFillColor, ImGuiColorEditFlags_NoInputs);
+                        }
+                        endStyledChild();
+                    }
+                    else if (tab2 == 2)
+                    {
+                        beginStyledChild("##pcMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Enabled", &Options::PartChams::Enabled);
+                            ImGui::Checkbox("Only When Menu Closed", &Options::PartChams::OnlyWhenMenuClosed);
+                            ImGui::Checkbox("Team Check", &Options::PartChams::TeamCheck);
+                            ImGui::Checkbox("Filled", &Options::PartChams::Filled);
+                            ImGui::PopStyleColor(1);
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##pcSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::ColorEdit3("Color", Options::PartChams::Color, ImGuiColorEditFlags_NoInputs);
+                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::SliderFloat("Alpha", &Options::PartChams::Alpha, 0.0f, 1.0f, "%.2f");
+                            ImGui::SliderFloat("Thickness", &Options::PartChams::Thickness, 0.5f, 5.0f, "%.1f");
+                            ImGui::PopStyleColor(1);
+                            static const char* partChamsSelect[] = { "Head", "Torso", "Arms", "Legs", "All" };
+                            ImGui::Combo("Parts", &Options::PartChams::PartSelect, partChamsSelect, IM_ARRAYSIZE(partChamsSelect));
+                        }
+                        endStyledChild();
+                    }
+                    else if (tab2 == 3)
+                    {
+                        beginStyledChild("##hcMain", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
+                            ImGui::Checkbox("Enabled", &Options::HitboxChams::Enabled);
+                            ImGui::Checkbox("Only When Menu Closed", &Options::HitboxChams::OnlyWhenMenuClosed);
+                            ImGui::Checkbox("Team Check", &Options::HitboxChams::TeamCheck);
+                            ImGui::Checkbox("Filled", &Options::HitboxChams::Filled);
+                            ImGui::Checkbox("Highlight Aim Target", &Options::HitboxChams::HighlightTarget);
+                            ImGui::PopStyleColor(1);
+                        }
+                        endStyledChild();
+
+                        ImGui::SameLine(0, 8);
+
+                        beginStyledChild("##hcSet", ImVec2(cw, contentH - 58));
+                        {
+                            ImGui::ColorEdit3("Color", Options::HitboxChams::Color, ImGuiColorEditFlags_NoInputs);
+                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                            ImGui::SliderFloat("Alpha", &Options::HitboxChams::Alpha, 0.0f, 1.0f, "%.2f");
+                            ImGui::SliderFloat("Thickness", &Options::HitboxChams::Thickness, 0.5f, 5.0f, "%.1f");
+                            ImGui::PopStyleColor(1);
+                            static const char* aimBones[] = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "Lower Torso", "Upper Torso" };
+                            ImGui::Combo("Part", &Options::HitboxChams::PartSelect, aimBones, IM_ARRAYSIZE(aimBones));
                         }
                         endStyledChild();
                     }
@@ -1080,7 +1188,7 @@ void ShowImgui()
                 }
                 else if (tab == 3)
                 {
-                    renderSubtabBar(miscSubtabNames, 3);
+                    renderSubtabBar(miscSubtabNames, 2);
                     ImGui::Dummy(ImVec2(0, 6));
 
                     if (tab2 == 0)
@@ -1118,46 +1226,6 @@ void ShowImgui()
                         endStyledChild();
                     }
                     else if (tab2 == 1)
-                    {
-                        beginStyledChild("##silentMain", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_CheckMark, main_color);
-                            ImGui::Checkbox("Enabled", &Options::SilentAim::Enabled);
-                            ImGui::Checkbox("Team Check", &Options::SilentAim::TeamCheck);
-                            ImGui::Checkbox("Downed Check", &Options::SilentAim::DownedCheck);
-                            ImGui::Checkbox("Prediction", &Options::SilentAim::Prediction);
-                            ImGui::Checkbox("Hitbox on Fire", &Options::SilentAim::HitboxOnFire);
-                            ImGui::PopStyleColor(1);
-                        }
-                        endStyledChild();
-
-                        ImGui::SameLine(0, 8);
-
-                        beginStyledChild("##silentSet", ImVec2(cw, contentH - 58));
-                        {
-                            ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("FOV", &Options::SilentAim::FOV, 1.f, 500.f, "%.0f");
-                            ImGui::SliderFloat("Range", &Options::SilentAim::Range, 10.f, 1000.f, "%.0f");
-                            if (Options::SilentAim::Prediction)
-                            {
-                                ImGui::SliderFloat("Prediction X", &Options::SilentAim::PredictionX, 0.1f, 10.f, "%.1f");
-                                ImGui::SliderFloat("Prediction Y", &Options::SilentAim::PredictionY, 0.1f, 10.f, "%.1f");
-                            }
-                            if (Options::SilentAim::HitboxOnFire)
-                            {
-                                ImGui::SliderFloat("Hitbox Mult", &Options::SilentAim::HitboxMult, 1.f, 20.f, "%.1f");
-                                ImGui::SliderInt("Hitbox Frames", &Options::SilentAim::HitboxFrames, 1, 10);
-                            }
-                            ImGui::PopStyleColor(1);
-
-                            ImGui::Dummy(ImVec2(0, 6));
-                            const char* aimMethods[] = { "Mouse Hit (Stable)", "Unit Ray (Unstable)" };
-                            ImGui::Combo("Method", &Options::SilentAim::Method, aimMethods, 2);
-                            KeybindSelector(" Silent Key", &Options::SilentAim::Key);
-                        }
-                        endStyledChild();
-                    }
-                    else if (tab2 == 2)
                     {
                         static char configName[64] = "default";
                         static std::vector<std::string> configList;
@@ -1276,6 +1344,8 @@ void ShowImgui()
         if (IsGameOnTop("Roblox"))
         {
             RenderESP(ImGui::GetBackgroundDrawList(), menu_open);
+            RenderPartChams(ImGui::GetBackgroundDrawList(), menu_open);
+            RenderHitboxChams(ImGui::GetBackgroundDrawList(), menu_open);
 
             if (!menu_open)
             {
