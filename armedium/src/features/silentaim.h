@@ -249,6 +249,15 @@ inline void RunSilentAim()
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
+        // The aimbot owns the viewport shift while it uses Method "Viewport"
+        // or the FPS fallback - don't fight it for the same 4 bytes; a
+        // last-write-wins loop would oscillate between two targets. The
+        // renderer's per-frame ApplyViewportAim(false) covers cleanup.
+        bool aimbotWritesViewport = Options::Aimbot::Aimbot &&
+            (Options::Aimbot::AimingType == 2 || Options::Aimbot::ViewportFallbackFPS);
+        if (aimbotWritesViewport)
+            continue;
+
         if (!Options::SilentAim::Enabled)
         {
             ApplyViewportAim(false, { 0.f, 0.f });

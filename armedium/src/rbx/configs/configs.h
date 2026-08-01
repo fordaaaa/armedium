@@ -62,6 +62,7 @@ inline json CreateConfig(std::string configName)
         {"Aimbot Key", Options::Aimbot::AimbotKey},
         {"Aiming Type", Options::Aimbot::AimingType},
         {"Toggle Type", Options::Aimbot::ToggleType},
+        {"FPS Viewport Fallback", Options::Aimbot::ViewportFallbackFPS},
         {"Aimbot", Options::Aimbot::Aimbot},
         {"Team Check", Options::Aimbot::TeamCheck},
         {"Downed Check", Options::Aimbot::DownedCheck},
@@ -314,6 +315,9 @@ inline void LoadConfig(std::string configName)
     
     if (data["Aimbot"].contains("Toggle Type"))
         Options::Aimbot::ToggleType = data["Aimbot"]["Toggle Type"];
+
+    if (data["Aimbot"].contains("FPS Viewport Fallback"))
+        Options::Aimbot::ViewportFallbackFPS = data["Aimbot"]["FPS Viewport Fallback"];
     
     Options::Aimbot::Aimbot = data["Aimbot"]["Aimbot"];
     Options::Aimbot::TeamCheck = data["Aimbot"]["Team Check"];

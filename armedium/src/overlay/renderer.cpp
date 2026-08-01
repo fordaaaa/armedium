@@ -692,6 +692,12 @@ void ShowImgui()
                         {
                             static const char* aimingMethods[]{ "Camera", "Mouse", "Viewport" };
                             ImGui::Combo("Method", &Options::Aimbot::AimingType, aimingMethods, IM_ARRAYSIZE(aimingMethods));
+                            if (Options::Aimbot::AimingType != 2)
+                            {
+                                ImGui::Checkbox("FPS Fallback (Viewport)", &Options::Aimbot::ViewportFallbackFPS);
+                                if (Options::Aimbot::ViewportFallbackFPS)
+                                    ImGui::TextDisabled("Uses Viewport when cursor is locked (FPS)");
+                            }
                             static const char* hitParts[]{ "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg" };
                             ImGui::Combo("Hit Part", &Options::Aimbot::TargetBone, hitParts, IM_ARRAYSIZE(hitParts));
                             ImGui::Combo("Air Hit Part", &Options::Aimbot::AirTargetBone, hitParts, IM_ARRAYSIZE(hitParts));

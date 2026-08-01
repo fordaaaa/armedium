@@ -190,6 +190,8 @@ inline RobloxPlayer GetClosestPlayer()
     }
     auto localCharacter = Globals::Roblox::LocalPlayer.Character();
     auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
+    if (!localHRP.address)
+        return target; // dead/spectating - no 3D distance to compute
 
     POINT p;
     GetCursorPos(&p);
@@ -448,8 +450,12 @@ inline void MouseSendInput(const Vectors::Vector2& targetPos, const POINT& curre
     // Apply smoothness curve
     float t = ApplySmoothnessCurve(Options::Aimbot::Smoothness, Options::Aimbot::SmoothnessCurve);
 
-    float sensitivityScale = 1.0f / (sensitivity + 0.2f);
-    float speedScale = 0.5f;
+    // Compensate for the game's in-game sensitivity: higher game sensitivity
+    // -> smaller mickeys sent. Only capped at 2x (for sensitivities near 0) -
+    // a floor here would break the compensation at high sensitivity (the
+    // crosshair overshoots) and deaden the top of the Mouse Sens slider.
+    float sensitivityScale = std::clamp(1.0f / (sensitivity + 0.2f), 0.0f, 2.0f);
+    float speedScale = 1.5f;
 
     float moveX = dx * t * sensitivityScale * speedScale;
     float moveY = dy * t * sensitivityScale * speedScale;
@@ -514,9 +520,15 @@ inline void ApplyViewportAim(bool active, const Vectors::Vector2& targetPos)
 
         if (active)
         {
+            // A stale view matrix (typical mid-teleport) can produce garbage
+            // screen coords. float->short is UB for NaN/out-of-range values,
+            // so bail on non-finite input and clamp to the short range.
+            if (!std::isfinite(targetPos.x) || !std::isfinite(targetPos.y))
+                return;
+
             ViewportOffset vp;
-            vp.x = static_cast<short>((res.x - targetPos.x) * 2.0f);
-            vp.y = static_cast<short>((res.y - targetPos.y) * 2.0f);
+            vp.x = static_cast<short>(std::clamp((res.x - targetPos.x) * 2.0f, -32767.0f, 32767.0f));
+            vp.y = static_cast<short>(std::clamp((res.y - targetPos.y) * 2.0f, -32767.0f, 32767.0f));
 
             Memory->write<ViewportOffset>(cameraAddr + Offsets::Camera::Viewport, vp);
             lastActiveWrite = now;
@@ -542,12 +554,6 @@ inline void RunAimbot(ImDrawList* drawList)
 
     try
     {
-    auto localTeam = Globals::Roblox::LocalPlayer.Team();
-    std::string localTeamColor;
-    if (localTeam.address != 0)
-    {
-        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
-    }
     auto localCharacter = Globals::Roblox::LocalPlayer.Character();
     auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
     auto Dimensions = Memory->read<Vectors::Vector2>(Globals::Roblox::VisualEngine + Offsets::VisualEngine::Dimensions);
@@ -635,6 +641,23 @@ inline void RunAimbot(ImDrawList* drawList)
     }
     } // no keybind set -> always active
 
+    // Dead/spectating: no character to measure range against. Checked after
+    // the key handling so toggling still works while dead (an earlier return
+    // swallowed key presses and left the toggle stale for the next respawn).
+    // Dropping the sticky target here prevents it from surviving a respawn.
+    if (!localHRP.address)
+    {
+        Options::Aimbot::CurrentTarget = RobloxPlayer(0);
+        return;
+    }
+
+    auto localTeam = Globals::Roblox::LocalPlayer.Team();
+    std::string localTeamColor;
+    if (localTeam.address != 0)
+    {
+        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
+    }
+
     // Stutter logic: skip aiming every X ticks
     static int stutterTickCounter = 0;
     if (Options::Aimbot::Stutter && Options::Aimbot::StutterTicks > 0)
@@ -656,7 +679,7 @@ inline void RunAimbot(ImDrawList* drawList)
     {
         if (Options::Aimbot::CurrentTarget.address == 0 ||
             Options::Aimbot::CurrentTarget.Health == 0 ||
-            (Options::Aimbot::CurrentTarget.Health <= 1 && Options::Aimbot::DownedCheck) ||
+            (Options::Aimbot::CurrentTarget.Health <= 5 && Options::Aimbot::DownedCheck) ||
             (Options::Aimbot::TeamCheck && !localTeamColor.empty() && !Options::Aimbot::CurrentTarget.TeamColor.empty() &&
              Options::Aimbot::CurrentTarget.TeamColor == localTeamColor))
         {
@@ -664,18 +687,37 @@ inline void RunAimbot(ImDrawList* drawList)
         }
         else
         {
-            // Check if current target is still within range and visible
-            RobloxInstance curPart(0);
-            Vectors::Vector3 curPos;
-            GetTargetBoneAndPosition(Options::Aimbot::CurrentTarget, curPart, curPos);
-            Vectors::Vector3 diff = curPos - localHRP.Position();
-            float distance3D = diff.Magnitude();
-
-            bool keep = distance3D <= Options::Aimbot::Range;
-            if (keep && Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled)
+            // The target may have left the game: its cached part addresses can
+            // point at reused/other objects and still read as "alive". Only
+            // keep sticking if the player is still cached WITH a character -
+            // a destroyed character makes Position() read (0,0,0), which could
+            // lock the aim onto world origin.
+            bool stillCached = false;
+            for (auto& cp : Globals::Caches::CachedPlayerObjects)
             {
-                Vectors::Vector3 camPos = WallCheck_GetCameraPosition();
-                keep = IsPointVisible(camPos, curPos, nullptr, curPart.address);
+                if (cp.address == Options::Aimbot::CurrentTarget.address)
+                {
+                    stillCached = (cp.HumanoidRootPart.address != 0);
+                    break;
+                }
+            }
+
+            bool keep = stillCached;
+            if (keep)
+            {
+                // Only spend the position reads below on a still-valid target
+                RobloxInstance curPart(0);
+                Vectors::Vector3 curPos;
+                GetTargetBoneAndPosition(Options::Aimbot::CurrentTarget, curPart, curPos);
+                Vectors::Vector3 diff = curPos - localHRP.Position();
+                float distance3D = diff.Magnitude();
+
+                keep = distance3D <= Options::Aimbot::Range;
+                if (keep && Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled)
+                {
+                    Vectors::Vector3 camPos = WallCheck_GetCameraPosition();
+                    keep = IsPointVisible(camPos, curPos, nullptr, curPart.address);
+                }
             }
 
             if (!keep)
@@ -729,6 +771,17 @@ inline void RunAimbot(ImDrawList* drawList)
                 {
                 case 0:
                 {
+                    // FPS (locked cursor): raw-input games (Rivals) ignore
+                    // relative SendInput moves and script the camera every
+                    // frame, so Camera/Mouse are dead there. Fall back to the
+                    // viewport shift, which slides the rendered image instead
+                    // of fighting the camera - the only thing that works.
+                    if (Options::Aimbot::ViewportFallbackFPS)
+                    {
+                        ApplyViewportAim(true, targetPos);
+                        break;
+                    }
+
                     switch(Options::Aimbot::AimingType)
                     {
                         case 0: // Camera
