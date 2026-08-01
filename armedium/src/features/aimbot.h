@@ -446,6 +446,57 @@ inline void MouseSendInput(const Vectors::Vector2& targetPos, const POINT& curre
     }
 }
 
+struct ViewportOffset
+{
+    short x;
+    short y;
+};
+
+// Viewport shift aim: works in FPS games (e.g. Rivals) where the camera is
+// scripted every frame and the cursor is locked to center (no raw input / mouse
+// movement possible). Shifting Camera.Viewport slides the rendered image so the
+// target lands under the crosshair without moving the camera or the cursor.
+inline void ApplyViewportAim(bool active, const Vectors::Vector2& targetPos)
+{
+    static ViewportOffset lastVp{ -1, -1 };
+    static DWORD lastWrite = 0;
+
+    try
+    {
+        uintptr_t cameraAddr = Globals::Roblox::Camera.address;
+        uintptr_t engine = Globals::Roblox::VisualEngine;
+        if (!cameraAddr || !engine)
+            return;
+
+        auto res = Memory->read<Vectors::Vector2>(engine + Offsets::VisualEngine::Dimensions);
+
+        ViewportOffset vp;
+        if (active)
+        {
+            vp.x = static_cast<short>((res.x - targetPos.x) * 2.0f);
+            vp.y = static_cast<short>((res.y - targetPos.y) * 2.0f);
+        }
+        else
+        {
+            vp.x = static_cast<short>(res.x);
+            vp.y = static_cast<short>(res.y);
+        }
+
+        DWORD now = GetTickCount64();
+        bool reassert = (now - lastWrite) >= 250;
+
+        if (reassert || vp.x != lastVp.x || vp.y != lastVp.y)
+        {
+            Memory->write<ViewportOffset>(cameraAddr + Offsets::Camera::Viewport, vp);
+            lastVp = vp;
+            lastWrite = now;
+        }
+    }
+    catch (...)
+    {
+    }
+}
+
 inline void RunAimbot(ImDrawList* drawList)
 {
     if (!Options::Aimbot::Aimbot)
@@ -627,6 +678,11 @@ inline void RunAimbot(ImDrawList* drawList)
                     case 1: // Mouse
                     {
                         MouseSendInput(targetPos, p, sensitivity);
+                        break;
+                    }
+                    case 2: // Viewport (works in FPS games like Rivals)
+                    {
+                        ApplyViewportAim(true, targetPos);
                         break;
                     }
                 }

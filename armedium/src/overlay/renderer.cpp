@@ -681,7 +681,7 @@ void ShowImgui()
 
                         beginStyledChild("##aimMod", ImVec2(cw, contentH - 58));
                         {
-                            static const char* aimingMethods[]{ "Camera", "Mouse" };
+                            static const char* aimingMethods[]{ "Camera", "Mouse", "Viewport" };
                             ImGui::Combo("Method", &Options::Aimbot::AimingType, aimingMethods, IM_ARRAYSIZE(aimingMethods));
                             static const char* hitParts[]{ "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg" };
                             ImGui::Combo("Hit Part", &Options::Aimbot::TargetBone, hitParts, IM_ARRAYSIZE(hitParts));
@@ -1343,6 +1343,10 @@ void ShowImgui()
 
         if (IsGameOnTop("Roblox"))
         {
+            // Clear any leftover viewport shift (no-op unless it changed);
+            // RunAimbot re-applies it on the same frame when Viewport aim is active.
+            ApplyViewportAim(false, { 0.f, 0.f });
+
             RenderESP(ImGui::GetBackgroundDrawList(), menu_open);
             RenderPartChams(ImGui::GetBackgroundDrawList(), menu_open);
             RenderHitboxChams(ImGui::GetBackgroundDrawList(), menu_open);
