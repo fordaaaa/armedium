@@ -862,8 +862,8 @@ void ShowImgui()
                             ImGui::PopStyleColor(1);
 
                             ImGui::Dummy(ImVec2(0, 6));
-                            const char* aimMethods[] = { "Mouse Hit (Stable)", "Unit Ray (Unstable)" };
-                            ImGui::Combo("Method", &Options::SilentAim::Method, aimMethods, 2);
+                            const char* aimMethods[] = { "Mouse Hit (Stable)", "Unit Ray (Unstable)", "Viewport (Rivals)" };
+                            ImGui::Combo("Method", &Options::SilentAim::Method, aimMethods, IM_ARRAYSIZE(aimMethods));
                             KeybindSelector(" Silent Key", &Options::SilentAim::Key);
 
                             ImGui::Dummy(ImVec2(0, 8));

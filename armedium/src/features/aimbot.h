@@ -456,10 +456,14 @@ struct ViewportOffset
 // scripted every frame and the cursor is locked to center (no raw input / mouse
 // movement possible). Shifting Camera.Viewport slides the rendered image so the
 // target lands under the crosshair without moving the camera or the cursor.
+//
+// IMPORTANT: the engine re-derives Camera.Viewport every frame, so the shift
+// must be written EVERY frame while active (a dirty-check "write on change"
+// loses to the engine's reset). The reset path is guarded so it never fights
+// an active aim (shared by aimbot + silent aim).
 inline void ApplyViewportAim(bool active, const Vectors::Vector2& targetPos)
 {
-    static ViewportOffset lastVp{ -1, -1 };
-    static DWORD lastWrite = 0;
+    static DWORD lastActiveWrite = 0;
 
     try
     {
@@ -470,26 +474,24 @@ inline void ApplyViewportAim(bool active, const Vectors::Vector2& targetPos)
 
         auto res = Memory->read<Vectors::Vector2>(engine + Offsets::VisualEngine::Dimensions);
 
-        ViewportOffset vp;
+        DWORD now = GetTickCount64();
+
         if (active)
         {
+            ViewportOffset vp;
             vp.x = static_cast<short>((res.x - targetPos.x) * 2.0f);
             vp.y = static_cast<short>((res.y - targetPos.y) * 2.0f);
+
+            Memory->write<ViewportOffset>(cameraAddr + Offsets::Camera::Viewport, vp);
+            lastActiveWrite = now;
         }
-        else
+        else if ((now - lastActiveWrite) >= 50)
         {
+            ViewportOffset vp;
             vp.x = static_cast<short>(res.x);
             vp.y = static_cast<short>(res.y);
-        }
 
-        DWORD now = GetTickCount64();
-        bool reassert = (now - lastWrite) >= 250;
-
-        if (reassert || vp.x != lastVp.x || vp.y != lastVp.y)
-        {
             Memory->write<ViewportOffset>(cameraAddr + Offsets::Camera::Viewport, vp);
-            lastVp = vp;
-            lastWrite = now;
         }
     }
     catch (...)
@@ -656,7 +658,19 @@ inline void RunAimbot(ImDrawList* drawList)
         target = GetClosestPlayer();
     }
 
-    auto sensitivity = Memory->read<float>(Memory->getBaseAddress() + Offsets::MouseService::SensitivityPointer);
+    // SensitivityPointer is a version-specific absolute address; if it's stale
+    // the read can be garbage/zero. Fall back to 1.0 so the mouse method
+    // still produces sane movement instead of imperceptibly tiny moves.
+    float sensitivity = 1.0f;
+    try
+    {
+        float sensRaw = Memory->read<float>(Memory->getBaseAddress() + Offsets::MouseService::SensitivityPointer);
+        if (std::isfinite(sensRaw) && sensRaw > 0.01f && sensRaw < 100.0f)
+            sensitivity = sensRaw;
+    }
+    catch (...)
+    {
+    }
 
     if (target.address != 0)
     {

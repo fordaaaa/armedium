@@ -351,8 +351,10 @@ namespace Options
 		inline float PredictionX = 1.0f;
 		inline float PredictionY = 1.0f;
 
-		// Method selection: 0 = PlayerMouse.Hit + Target write (stable), 1 = UnitRay + Hit + Target (unverified - may crash)
-		inline int Method = 0;
+		// Method selection: 0 = PlayerMouse.Hit + Target write (works only if Mouse offsets are
+		// valid for this client; corrupts the game if stale), 1 = UnitRay + Hit + Target (may crash),
+		// 2 = Viewport shift (safe, works in FPS games like Rivals)
+		inline int Method = 2;
 		inline bool HitboxOnFire = false;
 		inline float HitboxMult = 5.0f;
 		inline int HitboxFrames = 2;

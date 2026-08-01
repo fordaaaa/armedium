@@ -128,10 +128,36 @@ inline void SilentAim_Apply(const RobloxPlayer& target)
         !IsPointVisible(camPos, aimPos, nullptr, targetPart.address))
         return;
 
+    // Method 2: Viewport shift (works in FPS games like Rivals). Shifts the
+    // render viewport so the target sits under the crosshair. Touches only
+    // 4 bytes of Camera.Viewport - cannot corrupt anything, and beats games
+    // that script the camera / ignore mouse input.
+    if (Options::SilentAim::Method == 2)
+    {
+        Vectors::Vector2 targetScreen = WorldToScreen(aimPos);
+        if (targetScreen.x != -1 && targetScreen.y != -1)
+            ApplyViewportAim(true, targetScreen);
+        return;
+    }
+
     uintptr_t mouseAddr = Memory->read<uintptr_t>(
         Globals::Roblox::LocalPlayer.address + Offsets::Player::Mouse);
     if (!mouseAddr)
         return;
+
+    // Fail-safe: Player::Mouse (0x11e0) is version-sensitive. If it's stale,
+    // mouseAddr points at some OTHER live object, and writing a CFrame into it
+    // corrupts the game (crash). Only trust it if its Workspace field points
+    // back at the real Workspace.
+    bool mouseValid = false;
+    if (mouseAddr)
+    {
+        uintptr_t ws = Memory->read<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Workspace);
+        mouseValid = (ws == Globals::Roblox::Workspace.address);
+    }
+
+    if (!mouseValid)
+        return; // stale offsets - never write to a possibly-wrong object
 
     // Method 0: PlayerMouse.Hit + Target overwrite (stable, reliable default)
     if (Options::SilentAim::Method == 0)
@@ -201,7 +227,10 @@ inline void RunSilentAim()
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         if (!Options::SilentAim::Enabled)
+        {
+            ApplyViewportAim(false, { 0.f, 0.f });
             continue;
+        }
 
         try
         {
@@ -218,6 +247,7 @@ inline void RunSilentAim()
                 if (!Options::SilentAim::Toggled)
                 {
                     Options::SilentAim::CurrentTarget = 0;
+                    ApplyViewportAim(false, { 0.f, 0.f });
                     continue;
                 }
             }
@@ -228,6 +258,7 @@ inline void RunSilentAim()
                 {
                     Options::SilentAim::CurrentTarget = 0;
                     Options::SilentAim::Toggled = false;
+                    ApplyViewportAim(false, { 0.f, 0.f });
                     continue;
                 }
             }
@@ -236,6 +267,7 @@ inline void RunSilentAim()
             if (target.address == 0)
             {
                 Options::SilentAim::CurrentTarget = 0;
+                ApplyViewportAim(false, { 0.f, 0.f });
                 continue;
             }
 
