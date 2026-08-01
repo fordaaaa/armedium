@@ -45,7 +45,19 @@ public:
 	inline std::vector<RobloxInstance> GetChildren() const
 	{
 		uintptr_t childrenStart = Memory->read<uintptr_t>(address + Offsets::Instance::ChildrenStart);
+		if (!childrenStart)
+			return {};
+
 		uintptr_t childrenEnd = Memory->read<uintptr_t>(childrenStart + Offsets::Instance::ChildrenEnd);
+
+		if (childrenEnd <= childrenStart)
+			return {};
+
+		// Sanity cap (~1MB stride = ~65k children): a stale childrenStart/End
+		// pair after a server transition can otherwise make this loop allocate
+		// unbounded memory and crash the process via std::bad_alloc.
+		if (childrenEnd - childrenStart > 0x100000)
+			return {};
 
 		std::vector<RobloxInstance> returnVector;
 

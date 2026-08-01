@@ -17,7 +17,7 @@ inline void RenderAdvancedFOV(ImDrawList* drawList)
     auto players = SnapshotCachedPlayerObjects();
     for (auto& player : players)
     {
-        if (player.address == Globals::Roblox::LocalPlayer.address)
+        if (IsLocalPlayerEntry(player))
             continue;
 
         if (player.Health <= 0)
@@ -219,7 +219,7 @@ inline void RunTriggerbot()
     // Check each player
     for (auto& player : players)
     {
-        if (player.address == Globals::Roblox::LocalPlayer.address)
+        if (IsLocalPlayerEntry(player))
             continue;
 
         if (player.Health <= 0)

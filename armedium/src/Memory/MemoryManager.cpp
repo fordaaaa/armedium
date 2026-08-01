@@ -82,13 +82,20 @@ std::string MemoryManager::readString(uintptr_t address) {
 	char character;
 	int offset = 0;
 
+	if (address == 0) {
+		return result;
+	}
+
 	int32_t StrLength = read<int32_t>(address + 0x18);
 
 	if (StrLength >= 16) {
 		address = read<uintptr_t>(address);
 	}
 
-	while ((character = read<char>(address + offset)) != 0)
+	// Cap the null-walk: a stale/freed object after a server transition can
+	// point at a mapped region with no null terminator in sight, letting this
+	// loop grow the string unboundedly until bad_alloc -> std::terminate.
+	while (offset < 1024 && (character = read<char>(address + offset)) != 0)
 	{
 		result.push_back(character);
 		offset += sizeof(character);

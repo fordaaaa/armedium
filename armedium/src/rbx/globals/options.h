@@ -116,7 +116,11 @@ namespace Options
 	namespace Aimbot
 	{
 		inline int AimbotKey = 0;
-		inline int AimingType = 0;
+		// Default 2 = Viewport: raw-input FPS games (Rivals) ignore relative
+		// SendInput Camera/Mouse moves entirely, so the viewport shift is the
+		// only method that actually works there. Users can still switch back
+		// via the "Aiming Method" combo (saved per-config).
+		inline int AimingType = 2;
 
 		// FPS (locked cursor) fallback: raw-input FPS games like Rivals ignore
 		// relative SendInput moves and script their camera every frame, so the

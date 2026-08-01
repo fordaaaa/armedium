@@ -57,6 +57,7 @@ inline void RunHitboxExpander()
                 continue;
             }
 
+            auto localChar = Globals::Roblox::LocalPlayer.Character();
             auto players = Globals::Roblox::Players.GetChildren();
             for (auto player : players)
             {
@@ -67,7 +68,7 @@ inline void RunHitboxExpander()
                     continue;
 
                 auto character = player.Character();
-                if (!character.address) 
+                if (!character.address || character.address == localChar.address)
                     continue;
 
                 auto hrp = character.FindFirstChild("HumanoidRootPart");

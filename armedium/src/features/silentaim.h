@@ -78,7 +78,7 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
     {
         if (!player.HumanoidRootPart.address)
             continue;
-        if (player.address == Globals::Roblox::LocalPlayer.address)
+        if (IsLocalPlayerEntry(player))
             continue;
         if (Options::SilentAim::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty() &&
             player.TeamColor == localTeamColor)

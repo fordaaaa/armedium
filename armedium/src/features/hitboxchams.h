@@ -58,7 +58,7 @@ inline void RenderHitboxChams(ImDrawList* dl, bool menuOpen = false)
     {
         try
         {
-            if (player.address == Globals::Roblox::LocalPlayer.address)
+            if (IsLocalPlayerEntry(player))
                 continue;
             if (player.Health <= 0)
                 continue;

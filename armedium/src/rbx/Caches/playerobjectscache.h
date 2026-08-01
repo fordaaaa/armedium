@@ -9,7 +9,9 @@ inline void CachePlayerObjects()
 
 	while (true)
 	{
-		tempList.clear();
+		try
+		{
+			tempList.clear();
 
 		auto playersSnapshot = SnapshotCachedPlayers();
 		if (playersSnapshot.empty())
@@ -113,6 +115,10 @@ inline void CachePlayerObjects()
 			}
 
 			tempList.push_back(p);
+		}
+		}
+		catch (...)
+		{
 		}
 
 		{

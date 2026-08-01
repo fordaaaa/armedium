@@ -11,7 +11,9 @@ inline void CachePlayers()
 
 	while (true)
 	{
-		tempList.clear();
+		try
+		{
+			tempList.clear();
 
 		// Get local player's character to exclude it from NPC detection
 		auto localCharacter = Globals::Roblox::LocalPlayer.Character();
@@ -30,6 +32,12 @@ inline void CachePlayers()
 		auto workspace = Globals::Roblox::Workspace;
 		if (workspace.address != 0 && Options::Misc::CacheNPCs)
 		{
+			// Re-read the local character right before the scan: it may have
+			// spawned or changed since the loop start (respawn / teleport), so
+			// the earlier snapshot can be stale and let OUR OWN character into
+			// the NPC list.
+			localCharacter = Globals::Roblox::LocalPlayer.Character();
+
 			auto workspaceChildren = workspace.GetChildren();
 			
 			for (auto& child : workspaceChildren)
@@ -87,6 +95,10 @@ inline void CachePlayers()
 			std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
 			Globals::Caches::CachedPlayers.clear();
 			Globals::Caches::CachedPlayers = tempList;
+		}
+		}
+		catch (...)
+		{
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));

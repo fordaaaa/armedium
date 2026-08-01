@@ -207,7 +207,7 @@ inline RobloxPlayer GetClosestPlayer()
         if (!HRP.address)
             continue;
 
-        if (player.address == Globals::Roblox::LocalPlayer.address)
+        if (IsLocalPlayerEntry(player))
             continue;
 
         if (Options::Aimbot::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty() &&

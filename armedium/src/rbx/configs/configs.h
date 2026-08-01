@@ -326,7 +326,9 @@ inline void LoadConfig(std::string configName)
     // Aimbot Loading
 
     Options::Aimbot::AimbotKey = data["Aimbot"]["Aimbot Key"];
-    Options::Aimbot::AimingType = data["Aimbot"]["Aiming Type"];
+
+    if (data["Aimbot"].contains("Aiming Type"))
+        Options::Aimbot::AimingType = data["Aimbot"]["Aiming Type"];
     
     if (data["Aimbot"].contains("Toggle Type"))
         Options::Aimbot::ToggleType = data["Aimbot"]["Toggle Type"];

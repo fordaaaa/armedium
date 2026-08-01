@@ -86,3 +86,22 @@ inline std::vector<RobloxPlayer> SnapshotCachedPlayerObjects()
     std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
     return Globals::Caches::CachedPlayerObjects;
 }
+
+// True if the cached player entry is the local player, either by Player-object
+// address or by character address. The character check matters: entries that
+// got into the cache via the NPC path (e.g. right after a teleport, when the
+// local character can be scanned into Workspace before LocalPlayer is
+// refreshed) carry the CHARACTER address, not the Player-object address, so
+// comparing only against LocalPlayer.address would miss them and the cheat
+// would ESP/aim at your own character.
+inline bool IsLocalPlayerEntry(const RobloxPlayer& player)
+{
+    if (player.address != 0 && player.address == Globals::Roblox::LocalPlayer.address)
+        return true;
+    if (player.Character.address != 0)
+    {
+        RobloxInstance localChar = Globals::Roblox::LocalPlayer.Character();
+        return player.Character.address == localChar.address;
+    }
+    return false;
+}

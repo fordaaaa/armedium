@@ -46,7 +46,7 @@ inline void RenderESP(ImDrawList* drawList, bool menuOpen = false)
 
     for (auto& player : players)
     {
-        if (player.address == Globals::Roblox::LocalPlayer.address)
+        if (IsLocalPlayerEntry(player))
             continue;
 
         if (player.Health <= 0)

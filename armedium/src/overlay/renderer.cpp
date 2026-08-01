@@ -1106,7 +1106,7 @@ void ShowImgui()
                                 int displayIdx = 0;
                                 for (int i = 0; i < (int)players.size(); i++)
                                 {
-                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
+                                    if (!IsLocalPlayerEntry(players[i]))
                                     {
                                         if (i == Options::Fling::TargetPlayerIndex)
                                             displayIdx = (int)flingTargetNames.size();
@@ -1173,7 +1173,7 @@ void ShowImgui()
                                 int displayIdx = 0;
                                 for (int i = 0; i < (int)players.size(); i++)
                                 {
-                                    if (players[i].address != Globals::Roblox::LocalPlayer.address)
+                                    if (!IsLocalPlayerEntry(players[i]))
                                     {
                                         if (i == Options::Teleport::SelectedPlayer)
                                             displayIdx = (int)tpNames.size();
@@ -1444,7 +1444,7 @@ void ShowImgui()
                         auto ctrlClickPlayers = SnapshotCachedPlayerObjects();
                         for (auto& player : ctrlClickPlayers)
                         {
-                            if (player.address == Globals::Roblox::LocalPlayer.address) continue;
+                            if (IsLocalPlayerEntry(player)) continue;
                             auto part = player.HumanoidRootPart;
                             if (!part.address) continue;
 
@@ -1493,7 +1493,7 @@ void ShowImgui()
                         if (idx >= 0 && idx < (int)players.size())
                         {
                             auto target = players[idx];
-                            if (target.address != Globals::Roblox::LocalPlayer.address && target.HumanoidRootPart.address)
+                            if (!IsLocalPlayerEntry(target) && target.HumanoidRootPart.address)
                             {
                                 TeleportToPos(target.HumanoidRootPart.Position());
                             }
