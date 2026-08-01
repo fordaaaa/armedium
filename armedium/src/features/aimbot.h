@@ -742,7 +742,7 @@ inline void RunAimbot(ImDrawList* drawList)
                 default:
                     break;
             }
-
+            }
         }
     }
     }
