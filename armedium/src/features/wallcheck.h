@@ -31,6 +31,22 @@ namespace WallCheckCache
     inline std::vector<WallCheckPart> Parts;
 }
 
+// Clears all runtime caches (player lists, wall-check snapshot, current aim
+// targets). Called on teleport / new game join and from the manual reset
+// button in the menu. ESP visuals redraw from the caches, so clearing them
+// wipes stale player/visual data.
+inline void ResetRuntimeState()
+{
+    {
+        std::lock_guard<std::mutex> lock(WallCheckCache::Mutex);
+        WallCheckCache::Parts.clear();
+    }
+    Globals::Caches::CachedPlayers.clear();
+    Globals::Caches::CachedPlayerObjects.clear();
+    Options::Aimbot::CurrentTarget = RobloxPlayer(0);
+    Options::SilentAim::CurrentTarget = 0;
+}
+
 inline Vectors::Vector3 WallCheck_GetCameraPosition()
 {
     return Memory->read<Vectors::Vector3>(Globals::Roblox::Camera.address + Offsets::Camera::Position);

@@ -29,7 +29,11 @@ inline RobloxInstance SilentAim_GetTargetPart(const RobloxPlayer& player, int bo
 
 inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
 {
-    RobloxInstance part = SilentAim_GetTargetPart(player, Options::SilentAim::TargetBone);
+    int bone = Options::SilentAim::TargetBone;
+    if (Options::SilentAim::PartRandomizer)
+        bone = RollRandomAimPart(bone, Options::SilentAim::HeadChance);
+
+    RobloxInstance part = SilentAim_GetTargetPart(player, bone);
     if (!part.address)
         return Vectors::Vector3{ 0.f, 0.f, 0.f };
 
@@ -98,8 +102,12 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
         if (distance3D > Options::SilentAim::Range)
             continue;
 
+        // Viewport method shifts the whole render - it works from any angle the
+        // target is on screen, so the FOV gate (which made it feel like an
+        // "assist" that only worked while already aiming at the enemy) is skipped.
+        float maxDist = (Options::SilentAim::Method == 2) ? FLT_MAX : Options::SilentAim::FOV;
         float distance = aimPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
-        if (distance < maxDistance && distance <= Options::SilentAim::FOV)
+        if (distance < maxDistance && distance <= maxDist)
         {
             maxDistance = distance;
             target = player;

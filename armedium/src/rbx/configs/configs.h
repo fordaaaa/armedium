@@ -83,7 +83,9 @@ inline json CreateConfig(std::string configName)
         {"Shake", Options::Aimbot::Shake},
         {"Shake Intensity", Options::Aimbot::ShakeIntensity},
         {"Stutter", Options::Aimbot::Stutter},
-        {"Stutter Ticks", Options::Aimbot::StutterTicks}
+        {"Stutter Ticks", Options::Aimbot::StutterTicks},
+        {"Part Randomizer", Options::Aimbot::PartRandomizer},
+        {"Head Chance", Options::Aimbot::HeadChance}
     };
 
     j["Triggerbot"] =
@@ -185,7 +187,9 @@ inline json CreateConfig(std::string configName)
         {"Method", Options::SilentAim::Method},
         {"Hitbox On Fire", Options::SilentAim::HitboxOnFire},
         {"Hitbox Mult", Options::SilentAim::HitboxMult},
-        {"Hitbox Frames", Options::SilentAim::HitboxFrames}
+        {"Hitbox Frames", Options::SilentAim::HitboxFrames},
+        {"Part Randomizer", Options::SilentAim::PartRandomizer},
+        {"Head Chance", Options::SilentAim::HeadChance}
     };
 
     std::ofstream out(Globals::configsPath + "\\" + configName);
@@ -361,6 +365,11 @@ inline void LoadConfig(std::string configName)
     
     if (data["Aimbot"].contains("Stutter Ticks"))
         Options::Aimbot::StutterTicks = data["Aimbot"]["Stutter Ticks"];
+
+    if (data["Aimbot"].contains("Part Randomizer"))
+        Options::Aimbot::PartRandomizer = data["Aimbot"]["Part Randomizer"];
+    if (data["Aimbot"].contains("Head Chance"))
+        Options::Aimbot::HeadChance = data["Aimbot"]["Head Chance"];
 
     // Triggerbot Loading
     if (data.contains("Triggerbot"))
@@ -580,5 +589,7 @@ inline void LoadConfig(std::string configName)
         if (data["SilentAim"].contains("Hitbox On Fire")) Options::SilentAim::HitboxOnFire = data["SilentAim"]["Hitbox On Fire"];
         if (data["SilentAim"].contains("Hitbox Mult")) Options::SilentAim::HitboxMult = data["SilentAim"]["Hitbox Mult"];
         if (data["SilentAim"].contains("Hitbox Frames")) Options::SilentAim::HitboxFrames = data["SilentAim"]["Hitbox Frames"];
+        if (data["SilentAim"].contains("Part Randomizer")) Options::SilentAim::PartRandomizer = data["SilentAim"]["Part Randomizer"];
+        if (data["SilentAim"].contains("Head Chance")) Options::SilentAim::HeadChance = data["SilentAim"]["Head Chance"];
     }
 }

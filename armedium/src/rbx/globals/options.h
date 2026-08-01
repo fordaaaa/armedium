@@ -156,6 +156,11 @@ namespace Options
 		inline bool NearestChest = true;
 		inline bool NearestLegs = true;
 
+		// Part randomizer: HeadChance% of the time aim at the selected part,
+		// otherwise a random body part (looks more human, avoids perfect headshots)
+		inline bool PartRandomizer = false;
+		inline float HeadChance = 50.0f;
+
 		inline bool VisibleOnly = false;
 
 		inline RobloxPlayer CurrentTarget;
@@ -350,6 +355,10 @@ namespace Options
 		inline bool Prediction = false;
 		inline float PredictionX = 1.0f;
 		inline float PredictionY = 1.0f;
+
+		// Part randomizer: HeadChance% headshots, otherwise a random body part
+		inline bool PartRandomizer = false;
+		inline float HeadChance = 50.0f;
 
 		// Method selection: 0 = PlayerMouse.Hit + Target write (works only if Mouse offsets are
 		// valid for this client; corrupts the game if stale), 1 = UnitRay + Hit + Target (may crash),

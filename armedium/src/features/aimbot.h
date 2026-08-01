@@ -111,6 +111,34 @@ inline RobloxInstance GetTargetBonePart(const RobloxPlayer& player, int boneIdx)
     }
 }
 
+// Part randomizer roll: headChance% of the time keep the requested bone,
+// otherwise pick a random body part (torso/arms/legs). Tries not to repeat
+// the same part twice in a row for a more natural mix.
+inline int RollRandomAimPart(int requestedBone, float headChance)
+{
+    static int lastRolled = -1;
+    static unsigned int seed = 0x9e3779b9u;
+
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    unsigned int rnd = seed;
+
+    if (headChance <= 0.0f || (rnd % 100u) < static_cast<unsigned int>(headChance))
+        return requestedBone;
+
+    static constexpr int partPool[] = { 1, 2, 3, 4, 5 }; // torso, arms, legs
+    int pick = partPool[rnd % 5u];
+    if (pick == lastRolled)
+    {
+        pick = partPool[(rnd / 7u) % 5u];
+        if (pick == lastRolled)
+            pick = 1;
+    }
+    lastRolled = pick;
+    return pick;
+}
+
 inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance& outPart, Vectors::Vector3& outPos)
 {
     if (Options::Aimbot::NearestAim)
@@ -123,6 +151,9 @@ inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance&
     bool isInAir = (velocity.y > 1.0f || velocity.y < -1.0f);
 
     int boneToUse = isInAir ? Options::Aimbot::AirTargetBone : Options::Aimbot::TargetBone;
+
+    if (Options::Aimbot::PartRandomizer)
+        boneToUse = RollRandomAimPart(boneToUse, Options::Aimbot::HeadChance);
 
     outPart = GetTargetBonePart(player, boneToUse);
     if (!outPart.address)
@@ -529,19 +560,14 @@ inline void RunAimbot(ImDrawList* drawList)
     }
 
     int CombatType;
-    
-    bool yAxisCheck;
 
-    if (Dimensions.x < GetSystemMetrics(SM_CXSCREEN) || Dimensions.y < GetSystemMetrics(SM_CYSCREEN))
-    {
-        yAxisCheck = (p.y - Dimensions.y / 2) <= 25;
-    }
-    else
-    {
-        yAxisCheck = p.y == Dimensions.y / 2;
-    }
+    // Tolerance-based locked-cursor detection: in FPS games (Rivals) the cursor
+    // is snapped to center, but never EXACTLY (float compare + window offsets),
+    // so a strict == misdetects third-person mode and kills the aim method.
+    bool xAxisCheck = std::fabs(p.x - Dimensions.x / 2.0f) <= 3.0f;
+    bool yAxisCheck = std::fabs(p.y - Dimensions.y / 2.0f) <= 25.0f;
 
-    if (p.x == Dimensions.x / 2 && yAxisCheck)
+    if (xAxisCheck && yAxisCheck)
     {
         CombatType = 0;
     }
@@ -678,39 +704,43 @@ inline void RunAimbot(ImDrawList* drawList)
 
         if (targetPos.x != -1 && targetPos.y != -1)
         {
-            switch (CombatType)
+            // Viewport shift works in any camera mode (FPS, third person, scripted
+            // cameras) - never gate it behind the locked-cursor CombatType check,
+            // which is exactly what broke it in Rivals.
+            if (Options::Aimbot::AimingType == 2)
             {
-            case 0:
+                ApplyViewportAim(true, targetPos);
+            }
+            else
             {
-                switch(Options::Aimbot::AimingType)
+                switch (CombatType)
                 {
-                    case 0: // Camera
+                case 0:
+                {
+                    switch(Options::Aimbot::AimingType)
                     {
-                        CameraRotation(target);
-                        break;
+                        case 0: // Camera
+                        {
+                            CameraRotation(target);
+                            break;
+                        }
+                        case 1: // Mouse
+                        {
+                            MouseSendInput(targetPos, p, sensitivity);
+                            break;
+                        }
                     }
-                    case 1: // Mouse
-                    {
-                        MouseSendInput(targetPos, p, sensitivity);
-                        break;
-                    }
-                    case 2: // Viewport (works in FPS games like Rivals)
-                    {
-                        ApplyViewportAim(true, targetPos);
-                        break;
-                    }
+                    break;
                 }
-                break;
-            }
 
-            case 1:
-            {
-                Mouse(targetPos, p);
-                break;
-            }
+                case 1:
+                {
+                    Mouse(targetPos, p);
+                    break;
+                }
 
-            default:
-                break;
+                default:
+                    break;
             }
 
         }

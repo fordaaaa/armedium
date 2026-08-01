@@ -1,6 +1,7 @@
 #pragma once
 #include "../globals/options.h"
 #include "../globals/globals.h"
+#include "../../features/wallcheck.h"
 #include <thread>
 #include <vector>
 
@@ -78,8 +79,9 @@ inline void TPHandler()
 
 			Globals::Roblox::lastPlaceID = Memory->read<int>(Globals::Roblox::DataModel.address + Offsets::DataModel::PlaceId);
 
-			Globals::Caches::CachedPlayers.clear();
-			Globals::Caches::CachedPlayerObjects.clear();
+			// New game / teleport: wipe player caches, wall-check snapshot,
+			// current aim targets, etc. so nothing carries over from the old place.
+			ResetRuntimeState();
 		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));

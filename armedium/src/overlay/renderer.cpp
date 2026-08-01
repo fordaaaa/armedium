@@ -577,6 +577,15 @@ void ShowImgui()
                                 ImGui::Checkbox("Legs", &Options::Aimbot::NearestLegs);
                                 ImGui::Unindent(14.0f);
                             }
+                            ImGui::Checkbox("Part Randomizer", &Options::Aimbot::PartRandomizer);
+                            if (Options::Aimbot::PartRandomizer)
+                            {
+                                ImGui::Indent(14.0f);
+                                ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                                ImGui::SliderFloat("Head Chance", &Options::Aimbot::HeadChance, 0.f, 100.f, "%.0f%%");
+                                ImGui::PopStyleColor(1);
+                                ImGui::Unindent(14.0f);
+                            }
                             ImGui::Checkbox("Visible Only", &Options::Aimbot::VisibleOnly);
                             ImGui::PopStyleColor(1);
 
@@ -838,6 +847,15 @@ void ShowImgui()
                             ImGui::Checkbox("Prediction", &Options::SilentAim::Prediction);
                             ImGui::Checkbox("Hitbox on Fire", &Options::SilentAim::HitboxOnFire);
                             ImGui::Checkbox("Visible Only", &Options::SilentAim::VisibleOnly);
+                            ImGui::Checkbox("Part Randomizer", &Options::SilentAim::PartRandomizer);
+                            if (Options::SilentAim::PartRandomizer)
+                            {
+                                ImGui::Indent(14.0f);
+                                ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
+                                ImGui::SliderFloat("Head Chance", &Options::SilentAim::HeadChance, 0.f, 100.f, "%.0f%%");
+                                ImGui::PopStyleColor(1);
+                                ImGui::Unindent(14.0f);
+                            }
                             ImGui::PopStyleColor(1);
                         }
                         endStyledChild();
@@ -1221,6 +1239,13 @@ void ShowImgui()
                             ImGui::SliderFloat("Position X", &Options::Misc::KeybindListX, 0.0f, 1920.f, "%.0f");
                             ImGui::SliderFloat("Position Y", &Options::Misc::KeybindListY, 0.0f, 1080.f, "%.0f");
                             ImGui::PopStyleColor(1);
+
+                            ImGui::Dummy(ImVec2(0, 8));
+                            if (ImGui::Button("Reset Caches", ImVec2(cw - 24, 28)))
+                            {
+                                ResetRuntimeState();
+                            }
+                            ImGui::TextDisabled("Clears player/ESP/wall-check data.\nUse after teleporting or joining a new game.");
 
                         }
                         endStyledChild();
