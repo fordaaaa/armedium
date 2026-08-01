@@ -41,8 +41,11 @@ inline void ResetRuntimeState()
         std::lock_guard<std::mutex> lock(WallCheckCache::Mutex);
         WallCheckCache::Parts.clear();
     }
-    Globals::Caches::CachedPlayers.clear();
-    Globals::Caches::CachedPlayerObjects.clear();
+    {
+        std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
+        Globals::Caches::CachedPlayers.clear();
+        Globals::Caches::CachedPlayerObjects.clear();
+    }
     Options::Aimbot::CurrentTarget = RobloxPlayer(0);
     Options::SilentAim::CurrentTarget = 0;
 }
@@ -191,7 +194,8 @@ inline void WallCheck_CollectPlayerCharacters(std::unordered_set<uintptr_t>& out
 {
     uintptr_t localChar = Globals::Roblox::LocalPlayer.Character().address;
     if (localChar) outChars.insert(localChar);
-    for (const auto& pl : Globals::Caches::CachedPlayerObjects)
+    auto players = SnapshotCachedPlayerObjects();
+    for (const auto& pl : players)
         if (pl.Character.address) outChars.insert(pl.Character.address);
 }
 

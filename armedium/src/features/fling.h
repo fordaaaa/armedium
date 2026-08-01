@@ -92,7 +92,7 @@ void FlingLoop()
 
                 if (Options::Fling::TargetFling && Options::Fling::TargetPlayerIndex >= 0)
                 {
-                    auto& players = Globals::Caches::CachedPlayerObjects;
+                    auto players = SnapshotCachedPlayerObjects();
                     int idx = Options::Fling::TargetPlayerIndex;
                     if (idx >= 0 && idx < (int)players.size())
                     {

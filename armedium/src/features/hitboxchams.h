@@ -24,7 +24,8 @@ inline void RenderHitboxChams(ImDrawList* dl, bool menuOpen = false)
         return;
     if (Options::HitboxChams::OnlyWhenMenuClosed && menuOpen)
         return;
-    if (!dl || Globals::Caches::CachedPlayerObjects.empty())
+    auto players = SnapshotCachedPlayerObjects();
+    if (!dl || players.empty())
         return;
 
     std::string localTeamColor;
@@ -53,7 +54,7 @@ inline void RenderHitboxChams(ImDrawList* dl, bool menuOpen = false)
     }
     ImU32 targetColor = IM_COL32(255, 50, 50, a);
 
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    for (auto& player : players)
     {
         try
         {

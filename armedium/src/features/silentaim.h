@@ -73,7 +73,8 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
     bool needCam = Options::SilentAim::VisibleOnly && Options::WallCheck::Enabled;
     if (needCam) camPos = WallCheck_GetCameraPosition();
 
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    auto players = SnapshotCachedPlayerObjects();
+    for (auto& player : players)
     {
         if (!player.HumanoidRootPart.address)
             continue;

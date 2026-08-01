@@ -1098,7 +1098,7 @@ void ShowImgui()
                             if (Options::Fling::TargetFling)
                             {
                                 ImGui::Dummy(ImVec2(0, 4));
-                                auto& players = Globals::Caches::CachedPlayerObjects;
+                                auto players = SnapshotCachedPlayerObjects();
                                 static std::vector<std::string> flingTargetNames;
                                 static std::vector<int> flingNameToPlayer;
                                 flingTargetNames.clear();
@@ -1165,7 +1165,7 @@ void ShowImgui()
                             if (Options::Teleport::TPToPlayers)
                             {
                                 ImGui::Dummy(ImVec2(0, 4));
-                                auto& players = Globals::Caches::CachedPlayerObjects;
+                                auto players = SnapshotCachedPlayerObjects();
                                 static std::vector<std::string> tpNames;
                                 static std::vector<int> tpNameToPlayer;
                                 tpNames.clear();
@@ -1441,7 +1441,8 @@ void ShowImgui()
 
                         RobloxPlayer bestTarget;
                         float bestDist = 400.0f * 400.0f;
-                        for (auto& player : Globals::Caches::CachedPlayerObjects)
+                        auto ctrlClickPlayers = SnapshotCachedPlayerObjects();
+                        for (auto& player : ctrlClickPlayers)
                         {
                             if (player.address == Globals::Roblox::LocalPlayer.address) continue;
                             auto part = player.HumanoidRootPart;
@@ -1488,7 +1489,7 @@ void ShowImgui()
                     if (shouldTP)
                     {
                         int idx = Options::Teleport::SelectedPlayer;
-                        auto& players = Globals::Caches::CachedPlayerObjects;
+                        auto players = SnapshotCachedPlayerObjects();
                         if (idx >= 0 && idx < (int)players.size())
                         {
                             auto target = players[idx];

@@ -206,7 +206,22 @@ inline json CreateConfig(std::string configName)
 inline void LoadConfig(std::string configName)
 {
     std::ifstream f(Globals::configsPath + "\\" + configName);
-    json data = json::parse(f);
+    if (!f.is_open())
+        return; // missing config - defaults stay
+
+    // A truncated/corrupt config must not throw out of the calling thread
+    // (the imgui thread) and kill the cheat - bail out and keep defaults.
+    json data;
+    try
+    {
+        data = json::parse(f);
+    }
+    catch (...)
+    {
+        return;
+    }
+    if (!data.is_object())
+        return;
 
     //ESP Loading
 

@@ -40,10 +40,11 @@ inline void RenderESP(ImDrawList* drawList, bool menuOpen = false)
 
     ImFont* font = ImGui::GetFont();
 
-    if (Globals::Caches::CachedPlayerObjects.empty())
+    auto players = SnapshotCachedPlayerObjects();
+    if (players.empty())
         return;
 
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    for (auto& player : players)
     {
         if (player.address == Globals::Roblox::LocalPlayer.address)
             continue;

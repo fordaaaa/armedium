@@ -2,6 +2,8 @@
 #include <Windows.h>
 #include <cstdint>
 #include <memory>
+#include <mutex>
+#include <vector>
 
 #include "../../Memory/MemoryManager.h"
 #include "../SDK/sdk.h"
@@ -58,10 +60,29 @@ namespace Globals
     }
     namespace Caches
     {
+        // Guards CachedPlayers / CachedPlayerObjects: the cache threads rebuild
+        // them on their own schedules (5s / 500ms) while the render/aim threads
+        // iterate them every frame, and ResetRuntimeState() clears them on
+        // teleport - unlocked concurrent clear/assign/iterate is UB. Writers
+        // swap under this lock; readers take a lock-protected snapshot via
+        // SnapshotCachedPlayers() / SnapshotCachedPlayerObjects().
+        inline std::mutex Mutex;
         inline std::vector<RobloxInstance> CachedPlayers;
         inline std::vector<RobloxPlayer> CachedPlayerObjects;
     }
     inline std::string executablePath;
     inline std::string configsPath;
     inline bool Initialized = false;
+}
+
+inline std::vector<RobloxInstance> SnapshotCachedPlayers()
+{
+    std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
+    return Globals::Caches::CachedPlayers;
+}
+
+inline std::vector<RobloxPlayer> SnapshotCachedPlayerObjects()
+{
+    std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
+    return Globals::Caches::CachedPlayerObjects;
 }

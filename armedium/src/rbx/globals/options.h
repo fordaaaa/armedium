@@ -120,10 +120,12 @@ namespace Options
 
 		// FPS (locked cursor) fallback: raw-input FPS games like Rivals ignore
 		// relative SendInput moves and script their camera every frame, so the
-		// Camera/Mouse methods do nothing in first person. When the cursor is
-		// detected as locked (CombatType 0), fall back to the viewport shift,
-		// which is the only method such games can't ignore.
-		inline bool ViewportFallbackFPS = true;
+		// Camera/Mouse methods do nothing in first person. When enabled, the
+		// locked-cursor state (CombatType 0) falls back to the viewport shift.
+		// Default OFF: the fallback overrides the user's chosen method whenever
+		// the cursor happens to sit near the window center, so it must be
+		// opted into per game.
+		inline bool ViewportFallbackFPS = false;
 
 		inline int ToggleType = 1;
 

@@ -200,7 +200,8 @@ inline RobloxPlayer GetClosestPlayer()
     bool needCam = Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled;
     if (needCam) camPos = WallCheck_GetCameraPosition();
 
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    auto players = SnapshotCachedPlayerObjects();
+    for (auto& player : players)
     {
         auto HRP = player.HumanoidRootPart;
         if (!HRP.address)
@@ -558,7 +559,7 @@ inline void RunAimbot(ImDrawList* drawList)
     auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
     auto Dimensions = Memory->read<Vectors::Vector2>(Globals::Roblox::VisualEngine + Offsets::VisualEngine::Dimensions);
 
-    if (Globals::Caches::CachedPlayerObjects.empty())
+    if (SnapshotCachedPlayerObjects().empty())
         return;
 
     POINT p;
@@ -693,7 +694,8 @@ inline void RunAimbot(ImDrawList* drawList)
             // a destroyed character makes Position() read (0,0,0), which could
             // lock the aim onto world origin.
             bool stillCached = false;
-            for (auto& cp : Globals::Caches::CachedPlayerObjects)
+            auto cachedPlayers = SnapshotCachedPlayerObjects();
+            for (auto& cp : cachedPlayers)
             {
                 if (cp.address == Options::Aimbot::CurrentTarget.address)
                 {

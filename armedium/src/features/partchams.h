@@ -180,7 +180,8 @@ inline void RenderPartChams(ImDrawList* dl, bool menuOpen = false)
         return;
     if (Options::PartChams::OnlyWhenMenuClosed && menuOpen)
         return;
-    if (!dl || Globals::Caches::CachedPlayerObjects.empty())
+    auto players = SnapshotCachedPlayerObjects();
+    if (!dl || players.empty())
         return;
 
     std::string localTeamColor;
@@ -195,7 +196,7 @@ inline void RenderPartChams(ImDrawList* dl, bool menuOpen = false)
     ImU32 fill = Options::PartChams::Filled ? IM_COL32(r, g, b, (int)(a * 0.35f)) : 0;
 
     std::vector<RobloxInstance> parts;
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    for (auto& player : players)
     {
         try
         {

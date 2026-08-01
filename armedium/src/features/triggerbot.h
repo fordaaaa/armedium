@@ -14,7 +14,8 @@ inline void RenderAdvancedFOV(ImDrawList* drawList)
 
     auto localTeam = Globals::Roblox::LocalPlayer.Team();
     
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    auto players = SnapshotCachedPlayerObjects();
+    for (auto& player : players)
     {
         if (player.address == Globals::Roblox::LocalPlayer.address)
             continue;
@@ -195,7 +196,8 @@ inline void RunTriggerbot()
     auto localCharacter = Globals::Roblox::LocalPlayer.Character();
     auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
     
-    if (Globals::Caches::CachedPlayerObjects.empty())
+    auto players = SnapshotCachedPlayerObjects();
+    if (players.empty())
         return;
 
     // Get cursor position
@@ -215,7 +217,7 @@ inline void RunTriggerbot()
     if (needCam) camPos = WallCheck_GetCameraPosition();
 
     // Check each player
-    for (auto& player : Globals::Caches::CachedPlayerObjects)
+    for (auto& player : players)
     {
         if (player.address == Globals::Roblox::LocalPlayer.address)
             continue;

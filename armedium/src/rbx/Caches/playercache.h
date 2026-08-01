@@ -83,8 +83,11 @@ inline void CachePlayers()
 			}
 		}
 
-		Globals::Caches::CachedPlayers.clear();
-		Globals::Caches::CachedPlayers = tempList;
+		{
+			std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
+			Globals::Caches::CachedPlayers.clear();
+			Globals::Caches::CachedPlayers = tempList;
+		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 

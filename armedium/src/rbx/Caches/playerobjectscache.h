@@ -11,13 +11,14 @@ inline void CachePlayerObjects()
 	{
 		tempList.clear();
 
-		if (Globals::Caches::CachedPlayers.empty())
+		auto playersSnapshot = SnapshotCachedPlayers();
+		if (playersSnapshot.empty())
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
 
-		for (auto& player : Globals::Caches::CachedPlayers)
+		for (auto& player : playersSnapshot)
 		{
 			RobloxPlayer p;
 
@@ -114,8 +115,11 @@ inline void CachePlayerObjects()
 			tempList.push_back(p);
 		}
 
-		Globals::Caches::CachedPlayerObjects.clear();
-		Globals::Caches::CachedPlayerObjects = tempList;
+		{
+			std::lock_guard<std::mutex> lock(Globals::Caches::Mutex);
+			Globals::Caches::CachedPlayerObjects.clear();
+			Globals::Caches::CachedPlayerObjects = tempList;
+		}
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	}
