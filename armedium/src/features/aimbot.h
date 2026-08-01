@@ -239,9 +239,14 @@ inline RobloxPlayer GetClosestPlayer()
         if (distance3D > Options::Aimbot::Range)
             continue;
 
+        // Viewport mode shifts the whole render - it engages from any angle the
+        // target is on screen, so the pixel-FOV gate (which made it feel dead)
+        // is skipped. Range still applies (3D distance).
+        float maxDist = (Options::Aimbot::AimingType == 2) ? FLT_MAX : Options::Aimbot::FOV;
+
         auto distance = targetPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
 
-        if (distance < maxDistance && distance <= Options::Aimbot::FOV)
+        if (distance < maxDistance && distance <= maxDist)
         {
             maxDistance = distance;
             target = player;
@@ -553,11 +558,9 @@ inline void RunAimbot(ImDrawList* drawList)
     POINT p;
     GetCursorPos(&p);
 
-    HWND robloxWindow = FindWindowA("Roblox", nullptr);
-    if (robloxWindow)
-    {
-        ScreenToClient(robloxWindow, &p);
-    }
+    // NOTE: p stays in RAW screen coords - WorldToScreen already returns screen
+    // coords, so converting to client coords would misalign everything in
+    // windowed mode.
 
     int CombatType;
 
@@ -598,9 +601,12 @@ inline void RunAimbot(ImDrawList* drawList)
     }
 
     // Toggle mode: detect key press edge (only trigger once per press)
+    // No keybind set (0) = always active, same as silent aim.
     static bool wasKeyPressed = false;
-    bool isKeyPressed = KeyBind::IsPressed(Options::Aimbot::AimbotKey);
-    
+    bool isKeyPressed = (Options::Aimbot::AimbotKey != 0) && KeyBind::IsPressed(Options::Aimbot::AimbotKey);
+
+    if (Options::Aimbot::AimbotKey != 0)
+    {
     if (Options::Aimbot::ToggleType == 1)
     {
         // Toggle mode: only toggle on key press edge (not while held)
@@ -627,6 +633,7 @@ inline void RunAimbot(ImDrawList* drawList)
             return;
         }
     }
+    } // no keybind set -> always active
 
     // Stutter logic: skip aiming every X ticks
     static int stutterTickCounter = 0;
@@ -697,6 +704,11 @@ inline void RunAimbot(ImDrawList* drawList)
     catch (...)
     {
     }
+
+    // Manual override: lets the user tune the mouse method per game (the
+    // pointer read is often stale on mismatched client versions)
+    if (Options::Aimbot::MouseSensitivity > 0.0f)
+        sensitivity = Options::Aimbot::MouseSensitivity;
 
     if (target.address != 0)
     {

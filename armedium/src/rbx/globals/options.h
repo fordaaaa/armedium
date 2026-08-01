@@ -161,6 +161,10 @@ namespace Options
 		inline bool PartRandomizer = false;
 		inline float HeadChance = 50.0f;
 
+		// Mouse method sensitivity: 0 = auto (read from game pointer),
+		// >0 = manual override so the mouse aim can be tuned per game
+		inline float MouseSensitivity = 0.0f;
+
 		inline bool VisibleOnly = false;
 
 		inline RobloxPlayer CurrentTarget;
@@ -359,6 +363,11 @@ namespace Options
 		// Part randomizer: HeadChance% headshots, otherwise a random body part
 		inline bool PartRandomizer = false;
 		inline float HeadChance = 50.0f;
+
+		// 2D FOV circle around the crosshair: 0 = closest to crosshair,
+		// 1 = lowest health target inside the circle
+		inline int TargetPriority = 0;
+		inline bool ShowFOV = false;
 
 		// Method selection: 0 = PlayerMouse.Hit + Target write (works only if Mouse offsets are
 		// valid for this client; corrupts the game if stale), 1 = UnitRay + Hit + Target (may crash),

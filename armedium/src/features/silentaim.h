@@ -54,6 +54,7 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
 {
     RobloxPlayer target;
     float maxDistance = FLT_MAX;
+    float lowestHealth = FLT_MAX;
     auto localTeam = Globals::Roblox::LocalPlayer.Team();
     std::string localTeamColor;
     if (localTeam.address != 0)
@@ -102,15 +103,29 @@ inline RobloxPlayer SilentAim_GetClosestPlayer()
         if (distance3D > Options::SilentAim::Range)
             continue;
 
-        // Viewport method shifts the whole render - it works from any angle the
-        // target is on screen, so the FOV gate (which made it feel like an
-        // "assist" that only worked while already aiming at the enemy) is skipped.
-        float maxDist = (Options::SilentAim::Method == 2) ? FLT_MAX : Options::SilentAim::FOV;
+        // 2D FOV: circle on the screen around the crosshair (where the
+        // character looks). Target must be inside it to be eligible.
         float distance = aimPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
-        if (distance < maxDistance && distance <= maxDist)
+        if (distance > Options::SilentAim::FOV)
+            continue;
+
+        if (Options::SilentAim::TargetPriority == 1)
         {
-            maxDistance = distance;
-            target = player;
+            // Lowest health target inside the circle (finish low enemies first)
+            if (player.Health < lowestHealth)
+            {
+                lowestHealth = player.Health;
+                target = player;
+            }
+        }
+        else
+        {
+            // Closest to the crosshair
+            if (distance < maxDistance)
+            {
+                maxDistance = distance;
+                target = player;
+            }
         }
     }
     return target;

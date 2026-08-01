@@ -85,7 +85,8 @@ inline json CreateConfig(std::string configName)
         {"Stutter", Options::Aimbot::Stutter},
         {"Stutter Ticks", Options::Aimbot::StutterTicks},
         {"Part Randomizer", Options::Aimbot::PartRandomizer},
-        {"Head Chance", Options::Aimbot::HeadChance}
+        {"Head Chance", Options::Aimbot::HeadChance},
+        {"Mouse Sens", Options::Aimbot::MouseSensitivity}
     };
 
     j["Triggerbot"] =
@@ -189,7 +190,9 @@ inline json CreateConfig(std::string configName)
         {"Hitbox Mult", Options::SilentAim::HitboxMult},
         {"Hitbox Frames", Options::SilentAim::HitboxFrames},
         {"Part Randomizer", Options::SilentAim::PartRandomizer},
-        {"Head Chance", Options::SilentAim::HeadChance}
+        {"Head Chance", Options::SilentAim::HeadChance},
+        {"Target Priority", Options::SilentAim::TargetPriority},
+        {"Show FOV", Options::SilentAim::ShowFOV}
     };
 
     std::ofstream out(Globals::configsPath + "\\" + configName);
@@ -370,6 +373,8 @@ inline void LoadConfig(std::string configName)
         Options::Aimbot::PartRandomizer = data["Aimbot"]["Part Randomizer"];
     if (data["Aimbot"].contains("Head Chance"))
         Options::Aimbot::HeadChance = data["Aimbot"]["Head Chance"];
+    if (data["Aimbot"].contains("Mouse Sens"))
+        Options::Aimbot::MouseSensitivity = data["Aimbot"]["Mouse Sens"];
 
     // Triggerbot Loading
     if (data.contains("Triggerbot"))
@@ -591,5 +596,7 @@ inline void LoadConfig(std::string configName)
         if (data["SilentAim"].contains("Hitbox Frames")) Options::SilentAim::HitboxFrames = data["SilentAim"]["Hitbox Frames"];
         if (data["SilentAim"].contains("Part Randomizer")) Options::SilentAim::PartRandomizer = data["SilentAim"]["Part Randomizer"];
         if (data["SilentAim"].contains("Head Chance")) Options::SilentAim::HeadChance = data["SilentAim"]["Head Chance"];
+        if (data["SilentAim"].contains("Target Priority")) Options::SilentAim::TargetPriority = data["SilentAim"]["Target Priority"];
+        if (data["SilentAim"].contains("Show FOV")) Options::SilentAim::ShowFOV = data["SilentAim"]["Show FOV"];
     }
 }

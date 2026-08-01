@@ -707,6 +707,9 @@ void ShowImgui()
                             ImGui::SliderFloat("Range", &Options::Aimbot::Range, 1.f, 1000.f, "%.0f");
                             ImGui::SliderFloat("FOV", &Options::Aimbot::FOV, 10.f, 360.f, "%.0f");
                             ImGui::SliderFloat("FOV Thickness", &Options::Aimbot::FOVThickness, 1.0f, 10.0f, "%.1f");
+                            ImGui::SliderFloat("Mouse Sens", &Options::Aimbot::MouseSensitivity, 0.f, 10.f, "%.2f");
+                            if (Options::Aimbot::MouseSensitivity <= 0.0f)
+                                ImGui::TextDisabled("0 = auto (read from game)");
                             if (Options::Aimbot::Prediction)
                             {
                                 ImGui::SliderFloat("Prediction X", &Options::Aimbot::PredictionX, 0.1f, 10.0f, "%.1f");
@@ -847,6 +850,7 @@ void ShowImgui()
                             ImGui::Checkbox("Prediction", &Options::SilentAim::Prediction);
                             ImGui::Checkbox("Hitbox on Fire", &Options::SilentAim::HitboxOnFire);
                             ImGui::Checkbox("Visible Only", &Options::SilentAim::VisibleOnly);
+                            ImGui::Checkbox("Show FOV", &Options::SilentAim::ShowFOV);
                             ImGui::Checkbox("Part Randomizer", &Options::SilentAim::PartRandomizer);
                             if (Options::SilentAim::PartRandomizer)
                             {
@@ -865,8 +869,10 @@ void ShowImgui()
                         beginStyledChild("##silentSet", ImVec2(cw, contentH - 58));
                         {
                             ImGui::PushStyleColor(ImGuiCol_SliderGrab, main_color);
-                            ImGui::SliderFloat("FOV", &Options::SilentAim::FOV, 1.f, 500.f, "%.0f");
+                            ImGui::SliderFloat("FOV", &Options::SilentAim::FOV, 10.f, 1000.f, "%.0f");
                             ImGui::SliderFloat("Range", &Options::SilentAim::Range, 10.f, 1000.f, "%.0f");
+                            static const char* silentPriorities[]{ "Closest to Crosshair", "Lowest Health" };
+                            ImGui::Combo("Target Priority", &Options::SilentAim::TargetPriority, silentPriorities, IM_ARRAYSIZE(silentPriorities));
                             if (Options::SilentAim::Prediction)
                             {
                                 ImGui::SliderFloat("Prediction X", &Options::SilentAim::PredictionX, 0.1f, 10.f, "%.1f");
@@ -1380,6 +1386,21 @@ void ShowImgui()
             {
                 RunAimbot(ImGui::GetBackgroundDrawList());
                 RunTriggerbot();
+
+                // Silent aim 2D FOV circle (screen-space, around the crosshair)
+                if (Options::SilentAim::ShowFOV)
+                {
+                    POINT sp;
+                    GetCursorPos(&sp);
+                    ImColor saColor = IM_COL32(
+                        static_cast<int>(Options::Aimbot::FOVColor[0] * 255.f),
+                        static_cast<int>(Options::Aimbot::FOVColor[1] * 255.f),
+                        static_cast<int>(Options::Aimbot::FOVColor[2] * 255.f),
+                        255);
+                    ImGui::GetBackgroundDrawList()->AddCircle(
+                        ImVec2(static_cast<float>(sp.x), static_cast<float>(sp.y)),
+                        Options::SilentAim::FOV, saColor, 0, 1.5f);
+                }
                 RunMacro();
 
                 // Teleport helpers
