@@ -48,20 +48,25 @@ public:
 		if (!childrenStart)
 			return {};
 
+		// childrenStart points at a small struct holding the first and last
+		// element-slot addresses (slots are 0x10 apart). Only those two VALUES
+		// form a meaningful range - the struct pointer itself is unrelated to
+		// where the slot array lives in the heap.
+		uintptr_t child = Memory->read<uintptr_t>(childrenStart);
 		uintptr_t childrenEnd = Memory->read<uintptr_t>(childrenStart + Offsets::Instance::ChildrenEnd);
 
-		if (childrenEnd <= childrenStart)
+		if (!child || childrenEnd <= child)
 			return {};
 
 		// Sanity cap (~1MB stride = ~65k children): a stale childrenStart/End
 		// pair after a server transition can otherwise make this loop allocate
 		// unbounded memory and crash the process via std::bad_alloc.
-		if (childrenEnd - childrenStart > 0x100000)
+		if (childrenEnd - child > 0x100000)
 			return {};
 
 		std::vector<RobloxInstance> returnVector;
 
-		for (uintptr_t child = Memory->read<uintptr_t>(childrenStart); child < childrenEnd; child += 0x10)
+		for (; child < childrenEnd; child += 0x10)
 		{
 			returnVector.emplace_back(RobloxInstance(Memory->read<uintptr_t>(child)));
 		}
