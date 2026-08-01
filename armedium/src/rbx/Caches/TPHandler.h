@@ -109,10 +109,10 @@ inline void TPHandler()
 
 				RobloxInstance workspace = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Workspace");
 				RobloxInstance players = Globals::Roblox::DataModel.FindFirstChildWhichIsA("Players");
-				RobloxInstance camera;
+				RobloxInstance camera(0);
 				if (workspace.address)
 					camera = workspace.FindFirstChildWhichIsA("Camera");
-				RobloxInstance localPlayer;
+				RobloxInstance localPlayer(0);
 				if (players.address)
 					localPlayer = RobloxInstance(Memory->read<uintptr_t>(players.address + Offsets::Player::LocalPlayer));
 
