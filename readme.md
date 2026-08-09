@@ -1,9 +1,8 @@
 # armedium
 
-a chill external overlay for roblox. it's just a window that sits on top and reads some memory, that's about it. nothing to see here. 🚶
+a external 'overlay; for rbl. just a window reading some memory....
 
-built with c++, imgui, and a directx 11 overlay, all on top of a simple external memory reader — no injections, no dlls, no touching the game process beyond a couple of reads and writes.
-
+built with c++, imgui, and a directx 11 overlay, doesnt inj/touch the process at all
 ## features
 
 - **overlay** — clean imgui menu with themes, keybind list, fps counter, notifications, and a config autosave system
@@ -12,7 +11,7 @@ built with c++, imgui, and a directx 11 overlay, all on top of a simple external
 - **silent aiming** — mouse hit overwrite methods with optional hitbox on fire
 - **triggerbot** — radius or advanced per-part fov, delay control
 - **chams** — part chams and hitbox chams (external, rendered client-side)
-- **misc** — fly, walkspeed, noclip, fling, gravity mods, teleport, macro, wallcheck
+- **misc** — fly, walkspeed, noclip, fling, gravity mods, teleport, wallcheck
 - **configs** — save/load via json, autosave on exit
 
 ## building
