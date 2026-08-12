@@ -7,24 +7,17 @@
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
 #include "../rbx/math/math.h"
+#include "../rbx/BoneRegistry.h"
 #include "../overlay/imgui/KeyBind.h"
 #include "aimbot.h" // reuse GetVelocity
 #include "wallcheck.h"
+#include "TargetSelector.h"
 
+// Bone resolution → BoneRegistry::GetAimTargetBone()
+// (replaces the old hardcoded switch)
 inline RobloxInstance SilentAim_GetTargetPart(const RobloxPlayer& player, int boneIdx)
 {
-    switch (boneIdx)
-    {
-        case 0: return player.Head;
-        case 1: return player.HumanoidRootPart;
-        case 2: return (player.RigType == 0) ? player.Left_Arm : player.Left_Hand;
-        case 3: return (player.RigType == 0) ? player.Right_Arm : player.Right_Hand;
-        case 4: return (player.RigType == 0) ? player.Left_Leg : player.Left_Foot;
-        case 5: return (player.RigType == 0) ? player.Right_Leg : player.Right_Foot;
-        case 6: return (player.RigType == 1) ? player.Lower_Torso : player.HumanoidRootPart;
-        case 7: return (player.RigType == 1) ? player.Upper_Torso : player.HumanoidRootPart;
-        default: return player.Head;
-    }
+    return GetAimTargetBone(player, boneIdx);
 }
 
 inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
@@ -50,86 +43,21 @@ inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
     return basePos;
 }
 
+// SilentAim_GetClosestPlayer → delegates to TargetSelector.
 inline RobloxPlayer SilentAim_GetClosestPlayer()
 {
-    RobloxPlayer target;
-    float maxDistance = FLT_MAX;
-    float lowestHealth = FLT_MAX;
-    auto localTeam = Globals::Roblox::LocalPlayer.Team();
-    std::string localTeamColor;
-    if (localTeam.address != 0)
-    {
-        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
-    }
-    auto localCharacter = Globals::Roblox::LocalPlayer.Character();
-    auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
-    if (!localHRP.address)
-        return target;
+    TargetSelector sel;
+    sel.TeamCheck     = Options::SilentAim::TeamCheck;
+    sel.VisibleOnly   = Options::SilentAim::VisibleOnly;
+    sel.DownedCheck   = Options::SilentAim::DownedCheck;
+    sel.FOV           = Options::SilentAim::FOV;
+    sel.Range         = Options::SilentAim::Range;
+    sel.Priority      = (Options::SilentAim::TargetPriority == 1)
+                            ? TargetPriority::LowestHealth
+                            : TargetPriority::ClosestToCrosshair;
+    sel.TargetBoneIdx = Options::SilentAim::TargetBone;
 
-    POINT p;
-    GetCursorPos(&p);
-
-    Vectors::Vector3 camPos{};
-    bool needCam = Options::SilentAim::VisibleOnly && Options::WallCheck::Enabled;
-    if (needCam) camPos = WallCheck_GetCameraPosition();
-
-    auto players = SnapshotCachedPlayerObjects();
-    for (auto& player : players)
-    {
-        if (!player.HumanoidRootPart.address)
-            continue;
-        if (IsLocalPlayerEntry(player))
-            continue;
-        if (Options::SilentAim::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty() &&
-            player.TeamColor == localTeamColor)
-            continue;
-        if (player.Health == 0)
-            continue;
-        if (Options::SilentAim::DownedCheck && player.Health > 0 && player.Health <= 5.0f)
-            continue;
-
-        Vectors::Vector3 aimPos = SilentAim_GetAimPos(player);
-        if (needCam)
-        {
-            RobloxInstance aimPart = SilentAim_GetTargetPart(player, Options::SilentAim::TargetBone);
-            if (!IsPointVisible(camPos, aimPos, nullptr, aimPart.address))
-                continue;
-        }
-        auto aimPos2D = WorldToScreen(aimPos);
-        if (aimPos2D.x == -1 && aimPos2D.y == -1)
-            continue;
-
-        Vectors::Vector3 diff = localHRP.Position() - aimPos;
-        float distance3D = diff.Magnitude();
-        if (distance3D > Options::SilentAim::Range)
-            continue;
-
-        // 2D FOV: circle on the screen around the crosshair (where the
-        // character looks). Target must be inside it to be eligible.
-        float distance = aimPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
-        if (distance > Options::SilentAim::FOV)
-            continue;
-
-        if (Options::SilentAim::TargetPriority == 1)
-        {
-            // Lowest health target inside the circle (finish low enemies first)
-            if (player.Health < lowestHealth)
-            {
-                lowestHealth = player.Health;
-                target = player;
-            }
-        }
-        else
-        {
-            // Closest to the crosshair
-            if (distance < maxDistance)
-            {
-                maxDistance = distance;
-                target = player;
-            }
-        }
-    }
-    return target;
+    return sel.FindTarget();
 }
 
 inline void SilentAim_Apply(const RobloxPlayer& target)

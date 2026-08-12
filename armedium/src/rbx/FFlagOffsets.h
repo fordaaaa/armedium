@@ -1,8 +1,9 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include "OffsetVersion.h"
 namespace FFlagOffsets {
-    inline std::string ClientVersion = "version-145f189a6a974303";
+    inline std::string ClientVersion = ROBOX_CLIENT_VERSION;
 
     namespace FFlagList {
          inline constexpr uintptr_t Pointer = 0x89fbde8;

@@ -4,14 +4,28 @@
 #include <thread>
 #include <chrono>
 
+// ─── CFrame-based Fly ──────────────────────────────────────────────────────
+// Instead of fighting gravity with AssemblyLinearVelocity (which resets every
+// physics step), we directly move the HumanoidRootPart CFrame each frame.
+// This is effectively a per-frame teleport — zero gravity interaction, works
+// on any Roblox version regardless of physics changes.
+//
+// PlatformStand is still set to freeze humanoid animation, and gravity is
+// temporarily zeroed while flying to prevent the physics engine from applying
+// downward acceleration between frames.
+
 void FlyLoop()
 {
     static bool wasActive = false;
+    static float  savedGravity = 196.2f;
+    static float  savedReadOnlyGravity = 196.2f;
+    static bool   gravitySaved = false;
 
     while (true)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
+        // Key handling
         if (Options::Fly::FlyKey != 0)
         {
             static bool wasKeyPressed = false;
@@ -48,52 +62,96 @@ void FlyLoop()
             auto humanoidRootPart = character.FindFirstChild("HumanoidRootPart");
             if (!humanoidRootPart.address) continue;
 
-            uintptr_t primitive = Memory->read<uintptr_t>(humanoidRootPart.address + Offsets::BasePart::Primitive);
+            uintptr_t primitive = Memory->read<uintptr_t>(
+                humanoidRootPart.address + Offsets::BasePart::Primitive);
             if (!primitive) continue;
 
             if (active)
             {
+                // Freeze animation
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, true);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, false);
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
 
+                // Zero out gravity so the physics engine doesn't fight us
+                if (Globals::Roblox::Workspace.address != 0)
+                {
+                    if (!gravitySaved)
+                    {
+                        savedGravity = Memory->read<float>(
+                            Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity);
+                        savedReadOnlyGravity = Memory->read<float>(
+                            Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity);
+                        gravitySaved = true;
+                    }
+                    Memory->write<float>(
+                        Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, 0.f);
+                    Memory->write<float>(
+                        Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, 0.f);
+                }
+
+                // ─── CFrame-based movement ───────────────────────────
                 auto camera = Globals::Roblox::Camera;
+                Vectors::Vector3 move(0, 0, 0);
+
                 if (camera.address)
                 {
                     auto camCFrame = camera.CFrame();
                     Vectors::Vector3 forward = camCFrame.GetLookVector();
                     Vectors::Vector3 right = camCFrame.GetRightVector();
                     forward.y = 0.0f;
-                    right.y = 0.0f;
                     forward = forward.Normalize();
                     right = right.Normalize();
 
-                    Vectors::Vector3 moveDir(0, 0, 0);
-                    if (GetAsyncKeyState('W') & 0x8000) moveDir = moveDir + forward;
-                    if (GetAsyncKeyState('S') & 0x8000) moveDir = moveDir - forward;
-                    if (GetAsyncKeyState('A') & 0x8000) moveDir = moveDir - right;
-                    if (GetAsyncKeyState('D') & 0x8000) moveDir = moveDir + right;
-                    if (GetAsyncKeyState(VK_SPACE) & 0x8000) moveDir.y += 1.0f;
-                    if (GetAsyncKeyState(VK_SHIFT) & 0x8000) moveDir.y -= 1.0f;
+                    if (GetAsyncKeyState('W') & 0x8000) move = move + forward;
+                    if (GetAsyncKeyState('S') & 0x8000) move = move - forward;
+                    if (GetAsyncKeyState('A') & 0x8000) move = move - right;
+                    if (GetAsyncKeyState('D') & 0x8000) move = move + right;
+                }
 
-                    float mag = moveDir.Magnitude();
-                    Vectors::Vector3 velocity(0, 0, 0);
-                    if (mag > 0.01f)
-                        velocity = moveDir * (Options::Fly::Speed / mag);
-                    else
-                        velocity = Vectors::Vector3(0, 3.0f, 0);
+                if (GetAsyncKeyState(VK_SPACE) & 0x8000)  move.y += 1.0f;
+                if (GetAsyncKeyState(VK_SHIFT) & 0x8000)  move.y -= 1.0f;
 
-                    Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, velocity);
+                // Scale by speed and frame time (~10ms)
+                float dt = 0.01f * Options::Fly::Speed;
+                if (move.x != 0.f || move.y != 0.f || move.z != 0.f)
+                    move = move.Normalize() * dt;
+
+                // Read current CFrame, apply delta, write back
+                uintptr_t primitiveAddr = Memory->read<uintptr_t>(
+                    humanoidRootPart.address + Offsets::BasePart::Primitive);
+                if (primitiveAddr)
+                {
+                    sCFrame currentCFrame = Memory->read<sCFrame>(
+                        primitiveAddr + Offsets::BasePart::Rotation);
+
+                    currentCFrame.px += move.x;
+                    currentCFrame.py += move.y;
+                    currentCFrame.pz += move.z;
+
+                    Memory->write<sCFrame>(
+                        primitiveAddr + Offsets::BasePart::Rotation, currentCFrame);
+                    Memory->write<Vectors::Vector3>(
+                        primitiveAddr + Offsets::BasePart::Position, {0, 0, 0}); // zero positional offset
                 }
 
                 wasActive = true;
             }
             else if (wasActive)
             {
+                // Restore state
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::PlatformStand, false);
                 Memory->write<bool>(humanoid.address + Offsets::Humanoid::AutoRotate, true);
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
+
+                // Restore gravity
+                if (gravitySaved && Globals::Roblox::Workspace.address != 0)
+                {
+                    Memory->write<float>(
+                        Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, savedGravity);
+                    Memory->write<float>(
+                        Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, savedReadOnlyGravity);
+                    gravitySaved = false;
+                }
+
                 wasActive = false;
             }
         }

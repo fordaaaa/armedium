@@ -1,21 +1,11 @@
 #pragma once
 #include "partchams.h"
+#include "../rbx/BoneRegistry.h"
 
-// Mirrors the aim bone enum used by Aimbot/SilentAim (0-7).
+// Resolves bone index to RobloxInstance — delegates to BoneRegistry.
 inline RobloxInstance HitboxChams_GetBonePart(const RobloxPlayer& player, int boneIdx)
 {
-    switch (boneIdx)
-    {
-        case 0: return player.Head;
-        case 1: return player.HumanoidRootPart;
-        case 2: return (player.RigType == 0) ? player.Left_Arm : player.Left_Hand;
-        case 3: return (player.RigType == 0) ? player.Right_Arm : player.Right_Hand;
-        case 4: return (player.RigType == 0) ? player.Left_Leg : player.Left_Foot;
-        case 5: return (player.RigType == 0) ? player.Right_Leg : player.Right_Foot;
-        case 6: return (player.RigType == 1) ? player.Lower_Torso : player.HumanoidRootPart;
-        case 7: return (player.RigType == 1) ? player.Upper_Torso : player.HumanoidRootPart;
-        default: return player.Head;
-    }
+    return GetAimTargetBone(player, boneIdx);
 }
 
 inline void RenderHitboxChams(ImDrawList* dl, bool menuOpen = false)

@@ -7,6 +7,8 @@
 #include "../rbx/globals/globals.h"
 #include "../overlay/imgui/KeyBind.h"
 #include "wallcheck.h"
+#include "../rbx/BoneRegistry.h"
+#include "TargetSelector.h"
 
 inline Vectors::Vector3 GetVelocity(const RobloxInstance& part)
 {
@@ -95,21 +97,8 @@ inline Vectors::Vector3 GetNearestBonePosition(const RobloxPlayer& player)
     return GetNearestBonePart(player, part);
 }
 
-inline RobloxInstance GetTargetBonePart(const RobloxPlayer& player, int boneIdx)
-{
-    switch (boneIdx)
-    {
-        case 0: return player.Head;
-        case 1: return player.HumanoidRootPart;
-        case 2: return (player.RigType == 0) ? player.Left_Arm : player.Left_Hand;
-        case 3: return (player.RigType == 0) ? player.Right_Arm : player.Right_Hand;
-        case 4: return (player.RigType == 0) ? player.Left_Leg : player.Left_Foot;
-        case 5: return (player.RigType == 0) ? player.Right_Leg : player.Right_Foot;
-        case 6: return (player.RigType == 1) ? player.Lower_Torso : player.HumanoidRootPart;
-        case 7: return (player.RigType == 1) ? player.Upper_Torso : player.HumanoidRootPart;
-        default: return player.Head;
-    }
-}
+// Bone resolution now via BoneRegistry::GetAimTargetBone()
+// (replaces the old hardcoded switch)
 
 // Part randomizer roll: headChance% of the time keep the requested bone,
 // otherwise pick a random body part (torso/arms/legs). Tries not to repeat
@@ -155,9 +144,9 @@ inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance&
     if (Options::Aimbot::PartRandomizer)
         boneToUse = RollRandomAimPart(boneToUse, Options::Aimbot::HeadChance);
 
-    outPart = GetTargetBonePart(player, boneToUse);
+    outPart = GetAimTargetBone(player, boneToUse);
     if (!outPart.address)
-        outPart = player.Head;
+        outPart = GetBone(player, BoneId::Head);
 
     outPos = outPart.Position();
 
@@ -178,84 +167,20 @@ inline Vectors::Vector3 GetTargetPosition(const RobloxPlayer& player)
     return pos;
 }
 
+// GetClosestPlayer now delegates to TargetSelector (shared with silent aim).
+// Kept as a thin wrapper so all existing call sites continue to work.
 inline RobloxPlayer GetClosestPlayer()
 {
-    RobloxPlayer target;
-    auto maxDistance = FLT_MAX;
-    auto localTeam = Globals::Roblox::LocalPlayer.Team();
-    std::string localTeamColor;
-    if (localTeam.address != 0)
-    {
-        localTeamColor = Memory->readString(Memory->read<uintptr_t>(localTeam.address + Offsets::Team::BrickColorName));
-    }
-    auto localCharacter = Globals::Roblox::LocalPlayer.Character();
-    auto localHRP = localCharacter.FindFirstChild("HumanoidRootPart");
-    if (!localHRP.address)
-        return target; // dead/spectating - no 3D distance to compute
+    TargetSelector sel;
+    sel.TeamCheck    = Options::Aimbot::TeamCheck;
+    sel.VisibleOnly  = Options::Aimbot::VisibleOnly;
+    sel.DownedCheck  = Options::Aimbot::DownedCheck;
+    sel.FOV          = (Options::Aimbot::AimingType == 2) ? FLT_MAX : Options::Aimbot::FOV;
+    sel.Range        = Options::Aimbot::Range;
+    sel.Priority     = TargetPriority::ClosestToCrosshair;
+    sel.TargetBoneIdx = Options::Aimbot::TargetBone;
 
-    POINT p;
-    GetCursorPos(&p);
-
-    Vectors::Vector3 camPos{};
-    bool needCam = Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled;
-    if (needCam) camPos = WallCheck_GetCameraPosition();
-
-    auto players = SnapshotCachedPlayerObjects();
-    for (auto& player : players)
-    {
-        auto HRP = player.HumanoidRootPart;
-        if (!HRP.address)
-            continue;
-
-        if (IsLocalPlayerEntry(player))
-            continue;
-
-        if (Options::Aimbot::TeamCheck && !player.TeamColor.empty() && !localTeamColor.empty() &&
-            player.TeamColor == localTeamColor)
-            continue;
-
-        if (player.Health == 0)
-            continue;
-
-        // Skip knocked/downed players if check is enabled (health at or below 5)
-        if (player.Health > 0 && player.Health <= 5.0f && Options::Aimbot::DownedCheck)
-            continue;
-
-        RobloxInstance targetPart(0);
-        Vectors::Vector3 targetPos;
-        if (Options::Aimbot::NearestAim)
-            targetPos = GetNearestBonePart(player, targetPart);
-        else
-            GetTargetBoneAndPosition(player, targetPart, targetPos);
-
-        if (needCam && !IsPointVisible(camPos, targetPos, nullptr, targetPart.address))
-            continue;
-
-        auto targetPos2D = WorldToScreen(targetPos);
-
-        if (targetPos2D.x == -1 && targetPos2D.y == -1)
-            continue;
-
-        Vectors::Vector3 diff = localHRP.Position() - targetPos;
-        float distance3D = diff.Magnitude();
-        
-        if (distance3D > Options::Aimbot::Range)
-            continue;
-
-        // Viewport mode shifts the whole render - it engages from any angle the
-        // target is on screen, so the pixel-FOV gate (which made it feel dead)
-        // is skipped. Range still applies (3D distance).
-        float maxDist = (Options::Aimbot::AimingType == 2) ? FLT_MAX : Options::Aimbot::FOV;
-
-        auto distance = targetPos2D.Distance({ static_cast<float>(p.x), static_cast<float>(p.y) });
-
-        if (distance < maxDistance && distance <= maxDist)
-        {
-            maxDistance = distance;
-            target = player;
-        }
-    }
-    return target;
+    return sel.FindTarget();
 }
 
 inline float ApplySmoothnessCurve(float smoothness, int curveType)

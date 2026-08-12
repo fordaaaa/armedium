@@ -4,3 +4,5 @@
 ._DS_Store
 /ai-skills
 silentaimexampleinc
+.codewhale/
+package-lock.json

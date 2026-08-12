@@ -5,9 +5,15 @@
 
 #include <thread>
 
+// Noclip: disable both Primitive collision flags AND BasePart::CanCollide.
+// Newer Roblox versions check both independently — clearing only the Primitive
+// flags leaves CanCollide active on the BasePart, so walls still block you.
 inline void DisablePartCollision(const RobloxInstance& part)
 {
 	if (!part.address) return;
+	// BasePart-level CanCollide (offset 0x8 on the part object)
+	Memory->write<bool>(part.address + Offsets::BasePart::CanCollide, false);
+	// Primitive-level collision flags
 	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
 	if (!primitive) return;
 	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
@@ -18,6 +24,9 @@ inline void DisablePartCollision(const RobloxInstance& part)
 inline void RestorePartCollision(const RobloxInstance& part)
 {
 	if (!part.address) return;
+	// Restore BasePart CanCollide
+	Memory->write<bool>(part.address + Offsets::BasePart::CanCollide, true);
+	// Restore Primitive collision flags
 	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
 	if (!primitive) return;
 	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);

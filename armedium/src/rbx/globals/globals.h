@@ -7,6 +7,7 @@
 
 #include "../../Memory/MemoryManager.h"
 #include "../SDK/sdk.h"
+#include "../BoneRegistry.h"
 
 struct RobloxPlayer
 {
@@ -23,27 +24,37 @@ struct RobloxPlayer
     int64_t GroupId = 0;
     RobloxInstance Character = RobloxInstance(0);
     RobloxInstance Humanoid = RobloxInstance(0);
-    RobloxInstance Head = RobloxInstance(0);
-    RobloxInstance HumanoidRootPart = RobloxInstance(0);
-    RobloxInstance Left_Arm = RobloxInstance(0);
-    RobloxInstance Left_Leg = RobloxInstance(0);
-    RobloxInstance Right_Arm = RobloxInstance(0);
-    RobloxInstance Right_Leg = RobloxInstance(0);
-    RobloxInstance Torso = RobloxInstance(0);
-    RobloxInstance Upper_Torso = RobloxInstance(0);
-    RobloxInstance Lower_Torso = RobloxInstance(0);
-    RobloxInstance Right_Upper_Arm = RobloxInstance(0);
-    RobloxInstance Right_Lower_Arm = RobloxInstance(0);
-    RobloxInstance Right_Hand = RobloxInstance(0);
-    RobloxInstance Left_Upper_Arm = RobloxInstance(0);
-    RobloxInstance Left_Lower_Arm = RobloxInstance(0);
-    RobloxInstance Left_Hand = RobloxInstance(0);
-    RobloxInstance Right_Upper_Leg = RobloxInstance(0);
-    RobloxInstance Right_Lower_Leg = RobloxInstance(0);
-    RobloxInstance Right_Foot = RobloxInstance(0);
-    RobloxInstance Left_Upper_Leg = RobloxInstance(0);
-    RobloxInstance Left_Lower_Leg = RobloxInstance(0);
-    RobloxInstance Left_Foot = RobloxInstance(0);
+
+    // ─── Universal Bone Array ──────────────────────────────────────────
+    // Indexed by BoneId enum. Populated by CachePlayerObjects(). All
+    // aiming, ESP, and chams code should use GetBone() / GetAimTargetBone()
+    // from BoneRegistry.h instead of the legacy named fields below.
+    std::array<RobloxInstance, (size_t)BoneId::COUNT> Bones{};
+
+    // ─── Legacy bone aliases (index into Bones[]) ──────────────────────
+    // Still readable for existing code during transition. Prefer Bones[]
+    // or GetBone() for new code.
+    RobloxInstance& Head            = Bones[(uint8_t)BoneId::Head];
+    RobloxInstance& HumanoidRootPart = Bones[(uint8_t)BoneId::HumanoidRootPart];
+    RobloxInstance& Torso           = Bones[(uint8_t)BoneId::Torso];
+    RobloxInstance& Upper_Torso     = Bones[(uint8_t)BoneId::UpperTorso];
+    RobloxInstance& Lower_Torso     = Bones[(uint8_t)BoneId::LowerTorso];
+    RobloxInstance& Left_Arm        = Bones[(uint8_t)BoneId::LeftArm];
+    RobloxInstance& Right_Arm       = Bones[(uint8_t)BoneId::RightArm];
+    RobloxInstance& Left_Hand       = Bones[(uint8_t)BoneId::LeftHand];
+    RobloxInstance& Right_Hand      = Bones[(uint8_t)BoneId::RightHand];
+    RobloxInstance& Left_Leg        = Bones[(uint8_t)BoneId::LeftLeg];
+    RobloxInstance& Right_Leg       = Bones[(uint8_t)BoneId::RightLeg];
+    RobloxInstance& Left_Foot       = Bones[(uint8_t)BoneId::LeftFoot];
+    RobloxInstance& Right_Foot      = Bones[(uint8_t)BoneId::RightFoot];
+    RobloxInstance& Left_Upper_Arm  = Bones[(uint8_t)BoneId::LeftUpperArm];
+    RobloxInstance& Left_Lower_Arm  = Bones[(uint8_t)BoneId::LeftLowerArm];
+    RobloxInstance& Right_Upper_Arm = Bones[(uint8_t)BoneId::RightUpperArm];
+    RobloxInstance& Right_Lower_Arm = Bones[(uint8_t)BoneId::RightLowerArm];
+    RobloxInstance& Left_Upper_Leg  = Bones[(uint8_t)BoneId::LeftUpperLeg];
+    RobloxInstance& Left_Lower_Leg  = Bones[(uint8_t)BoneId::LeftLowerLeg];
+    RobloxInstance& Right_Upper_Leg = Bones[(uint8_t)BoneId::RightUpperLeg];
+    RobloxInstance& Right_Lower_Leg = Bones[(uint8_t)BoneId::RightLowerLeg];
 };
 
 namespace Globals
