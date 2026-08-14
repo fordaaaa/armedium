@@ -31,6 +31,40 @@ struct RobloxPlayer
     // from BoneRegistry.h instead of the legacy named fields below.
     std::array<RobloxInstance, (size_t)BoneId::COUNT> Bones{};
 
+    // The legacy bone aliases below are references into Bones[]. Reference
+    // members suppress the implicit copy/move operations, so they are defined
+    // explicitly: the aliases keep their in-class initializers (bound to this
+    // object's own Bones) while every value member is copied from `o`.
+    explicit RobloxPlayer(uintptr_t addr = 0) : address(addr) {}
+
+    RobloxPlayer(const RobloxPlayer& o)
+        : address(o.address), RigType(o.RigType), Name(o.Name),
+          DisplayName(o.DisplayName), ToolName(o.ToolName), UserId(o.UserId),
+          Health(o.Health), MaxHealth(o.MaxHealth), Team(o.Team),
+          TeamColor(o.TeamColor), GroupId(o.GroupId), Character(o.Character),
+          Humanoid(o.Humanoid), Bones(o.Bones)
+    {
+    }
+
+    RobloxPlayer& operator=(const RobloxPlayer& o)
+    {
+        address = o.address;
+        RigType = o.RigType;
+        Name = o.Name;
+        DisplayName = o.DisplayName;
+        ToolName = o.ToolName;
+        UserId = o.UserId;
+        Health = o.Health;
+        MaxHealth = o.MaxHealth;
+        Team = o.Team;
+        TeamColor = o.TeamColor;
+        GroupId = o.GroupId;
+        Character = o.Character;
+        Humanoid = o.Humanoid;
+        Bones = o.Bones;
+        return *this;
+    }
+
     // ─── Legacy bone aliases (index into Bones[]) ──────────────────────
     // Still readable for existing code during transition. Prefer Bones[]
     // or GetBone() for new code.

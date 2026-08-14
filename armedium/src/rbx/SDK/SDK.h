@@ -13,6 +13,8 @@ class RobloxInstance
 public:
 	uintptr_t address;
 
+	RobloxInstance() : address(0) {}
+
 	RobloxInstance(uintptr_t addy)
 	{
 		address = addy;

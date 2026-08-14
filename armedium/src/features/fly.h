@@ -124,9 +124,9 @@ void FlyLoop()
                     sCFrame currentCFrame = Memory->read<sCFrame>(
                         primitiveAddr + Offsets::BasePart::Rotation);
 
-                    currentCFrame.px += move.x;
-                    currentCFrame.py += move.y;
-                    currentCFrame.pz += move.z;
+                    currentCFrame.x += move.x;
+                    currentCFrame.y += move.y;
+                    currentCFrame.z += move.z;
 
                     Memory->write<sCFrame>(
                         primitiveAddr + Offsets::BasePart::Rotation, currentCFrame);
