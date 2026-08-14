@@ -5,4 +5,10 @@
 /ai-skills
 silentaimexampleinc
 .codewhale/
+.panoply/
+.opencode/
+node_modules/
+opencode.json
+package.json
 package-lock.json
+.DS_Store
