@@ -46,10 +46,10 @@ enum class BoneId : uint8_t
 // ─── Bone Registry Entry ───────────────────────────────────────────────────
 struct BoneRegistryEntry
 {
+    BoneId      id;          // Self-reference for lookup
     const char* r6Name;      // Part name for R6  (nullptr if N/A for R6)
     const char* r15Name;     // Part name for R15 (nullptr if N/A for R15)
     uint8_t     validRigs;   // Bitmask: 0b01 = R6, 0b10 = R15, 0b11 = both
-    BoneId      id;          // Self-reference for lookup
 };
 
 // ─── Master Registry ───────────────────────────────────────────────────────
@@ -80,13 +80,6 @@ inline constexpr std::array<BoneRegistryEntry, (size_t)BoneId::COUNT> BONE_REGIS
 }};
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
-
-// Resolve a BoneId to its RobloxInstance for a given player.
-// Returns RobloxInstance(0) if the bone doesn't exist for this player's rig.
-inline RobloxInstance GetBone(const RobloxPlayer& player, BoneId id)
-{
-    return player.Bones[(uint8_t)id];
-}
 
 // Get the part name for a BoneId given a specific rig type (0=R6, 1=R15).
 inline const char* BoneName(BoneId id, int rigType)
@@ -126,27 +119,6 @@ inline constexpr BoneId AIM_TARGET_BONES[] = {
     BoneId::UpperTorso,       // R15 UpperTorso (falls back to HRP for R6)
 };
 inline constexpr int AIM_TARGET_BONE_COUNT = 8;
-
-// Get the RobloxInstance for an aim-target bone index (0-7).
-// This replaces the old GetTargetBonePart() / SilentAim_GetTargetPart().
-inline RobloxInstance GetAimTargetBone(const RobloxPlayer& player, int boneIdx)
-{
-    if (boneIdx < 0 || boneIdx >= AIM_TARGET_BONE_COUNT)
-        return player.Bones[(uint8_t)BoneId::Head];
-
-    BoneId id = AIM_TARGET_BONES[boneIdx];
-    RobloxInstance part = player.Bones[(uint8_t)id];
-
-    // For R15-only bones on R6, fall back to HumanoidRootPart
-    if (!part.address && !BoneValidForRig(id, player.RigType))
-        part = player.Bones[(uint8_t)BoneId::HumanoidRootPart];
-
-    // If still nothing, fall back to Head
-    if (!part.address)
-        part = player.Bones[(uint8_t)BoneId::Head];
-
-    return part;
-}
 
 // ─── Nearest-Aim Bone Groups ───────────────────────────────────────────────
 // These are the bone groups used by the "nearest bone" aim mode.

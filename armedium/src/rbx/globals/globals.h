@@ -57,6 +57,34 @@ struct RobloxPlayer
     RobloxInstance& Right_Lower_Leg = Bones[(uint8_t)BoneId::RightLowerLeg];
 };
 
+// Resolve a BoneId to its RobloxInstance for a given player.
+// Returns RobloxInstance(0) if the bone doesn't exist for this player's rig.
+inline RobloxInstance GetBone(const RobloxPlayer& player, BoneId id)
+{
+    return player.Bones[(uint8_t)id];
+}
+
+// Get the RobloxInstance for an aim-target bone index (0-7).
+// This replaces the old GetTargetBonePart() / SilentAim_GetTargetPart().
+inline RobloxInstance GetAimTargetBone(const RobloxPlayer& player, int boneIdx)
+{
+    if (boneIdx < 0 || boneIdx >= AIM_TARGET_BONE_COUNT)
+        return player.Bones[(uint8_t)BoneId::Head];
+
+    BoneId id = AIM_TARGET_BONES[boneIdx];
+    RobloxInstance part = player.Bones[(uint8_t)id];
+
+    // For R15-only bones on R6, fall back to HumanoidRootPart
+    if (!part.address && !BoneValidForRig(id, player.RigType))
+        part = player.Bones[(uint8_t)BoneId::HumanoidRootPart];
+
+    // If still nothing, fall back to Head
+    if (!part.address)
+        part = player.Bones[(uint8_t)BoneId::Head];
+
+    return part;
+}
+
 namespace Globals
 {
     namespace Roblox
