@@ -23,7 +23,7 @@ built with c++, imgui, and a directx 11 overlay, doesnt inj/touch the process at
 ## usage
 
 1. join a roblox game and wait a second
-2. run the exe — it'll attach to the roblox process by itself
+2. run the exe and let it load
 3. `insert` to toggle the menu
 
 > offsets are tied to a specific client version and may need updating after roblox updates. check `src/rbx/offsets.h`.
