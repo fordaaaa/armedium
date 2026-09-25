@@ -116,11 +116,11 @@ namespace Options
 	namespace Aimbot
 	{
 		inline int AimbotKey = 0;
-		// Default 2 = Viewport: raw-input FPS games (Rivals) ignore relative
-		// SendInput Camera/Mouse moves entirely, so the viewport shift is the
-		// only method that actually works there. Users can still switch back
-		// via the "Aiming Method" combo (saved per-config).
-		inline int AimingType = 2;
+		// 0 = Camera, 1 = Mouse (SendInput, no game-memory writes), 2 = Viewport.
+		// Default is Mouse: the Viewport shift writes to a camera field whose
+		// layout is unconfirmed on this client (see offsets.h), so it stays
+		// opt-in. FPS games with locked cursors can still select it manually.
+		inline int AimingType = 1;
 
 		// FPS (locked cursor) fallback: raw-input FPS games like Rivals ignore
 		// relative SendInput moves and script their camera every frame, so the
@@ -382,9 +382,10 @@ namespace Options
 		inline int TargetPriority = 0;
 		inline bool ShowFOV = false;
 
-		// Method selection: 0 = PlayerMouse.Hit + Target write (works only if Mouse offsets are
-		// valid for this client; corrupts the game if stale), 1 = UnitRay + Hit + Target (may crash),
-		// 2 = Viewport shift (safe, works in FPS games like Rivals)
+		// Method selection: 0 = PlayerMouse.Hit + Target write (gated by a live
+		// sanity check on the mouse object + fields), 1 = UnitRay + Hit + Target
+		// (same gates), 2 = Viewport shift (Camera::Viewport layout unconfirmed
+		// on this client — opt-in only, see offsets.h)
 		inline int Method = 2;
 		inline bool HitboxOnFire = false;
 		inline float HitboxMult = 5.0f;

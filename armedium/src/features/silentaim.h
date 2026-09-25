@@ -34,10 +34,12 @@ inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
 
     if (Options::SilentAim::Prediction)
     {
+        float px = Options::SilentAim::PredictionX != 0.f ? Options::SilentAim::PredictionX : 1.f;
+        float py = Options::SilentAim::PredictionY != 0.f ? Options::SilentAim::PredictionY : 1.f;
         Vectors::Vector3 velocity = GetVelocity(part);
-        basePos.x += velocity.x / Options::SilentAim::PredictionX;
-        basePos.y += velocity.y / Options::SilentAim::PredictionY;
-        basePos.z += velocity.z / Options::SilentAim::PredictionX;
+        basePos.x += velocity.x / px;
+        basePos.y += velocity.y / py;
+        basePos.z += velocity.z / px;
     }
 
     return basePos;
@@ -81,9 +83,9 @@ inline void SilentAim_Apply(const RobloxPlayer& target)
         return;
 
     // Method 2: Viewport shift (works in FPS games like Rivals). Shifts the
-    // render viewport so the target sits under the crosshair. Touches only
-    // 4 bytes of Camera.Viewport - cannot corrupt anything, and beats games
-    // that script the camera / ignore mouse input.
+    // render viewport so the target sits under the crosshair.
+    // NOTE: the Camera::Viewport field layout is unconfirmed on this client
+    // (see offsets.h) — this method is opt-in for that reason.
     if (Options::SilentAim::Method == 2)
     {
         Vectors::Vector2 targetScreen = WorldToScreen(aimPos);
@@ -110,6 +112,22 @@ inline void SilentAim_Apply(const RobloxPlayer& target)
 
     if (!mouseValid)
         return; // stale offsets - never write to a possibly-wrong object
+
+    // Field-layout gate: Hit/Target/UnitRay offsets are carried from an older
+    // client. Hit should currently hold a finite CFrame and Target should be
+    // null or a live instance — otherwise the layout moved and writing would
+    // corrupt the mouse object.
+    {
+        bool fieldsSane = true;
+        for (int i = 0; i < 12 && fieldsSane; i++)
+            if (!std::isfinite(Memory->read<float>(mouseAddr + Offsets::PlayerMouse::Hit + i * 4)))
+                fieldsSane = false;
+        uintptr_t curTarget = fieldsSane ? Memory->read<uintptr_t>(mouseAddr + Offsets::PlayerMouse::Target) : 1;
+        if (fieldsSane && curTarget != 0)
+            fieldsSane = Memory->read<uintptr_t>(curTarget + Offsets::Instance::ClassDescriptor) != 0;
+        if (!fieldsSane)
+            return;
+    }
 
     // Method 0: PlayerMouse.Hit + Target overwrite (stable, reliable default)
     if (Options::SilentAim::Method == 0)

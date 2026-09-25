@@ -80,11 +80,13 @@ inline Vectors::Vector3 GetNearestBonePart(const RobloxPlayer& player, RobloxIns
     outPart = bestPart;
 
     if (Options::Aimbot::Prediction && bestPart.address != 0) {
+        float px = Options::Aimbot::PredictionX != 0.f ? Options::Aimbot::PredictionX : 1.f;
+        float py = Options::Aimbot::PredictionY != 0.f ? Options::Aimbot::PredictionY : 1.f;
         Vectors::Vector3 velocity = GetVelocity(bestPart);
         return Vectors::Vector3{
-            bestPos.x + velocity.x / Options::Aimbot::PredictionX,
-            bestPos.y + velocity.y / Options::Aimbot::PredictionY,
-            bestPos.z + velocity.z / Options::Aimbot::PredictionX
+            bestPos.x + velocity.x / px,
+            bestPos.y + velocity.y / py,
+            bestPos.z + velocity.z / px
         };
     }
 
@@ -152,10 +154,13 @@ inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance&
 
     if (Options::Aimbot::Prediction && outPart.address != 0)
     {
+        // Prediction sliders bottom out at 0 — guard the divide.
+        float px = Options::Aimbot::PredictionX != 0.f ? Options::Aimbot::PredictionX : 1.f;
+        float py = Options::Aimbot::PredictionY != 0.f ? Options::Aimbot::PredictionY : 1.f;
         Vectors::Vector3 v = GetVelocity(outPart);
-        outPos.x += v.x / Options::Aimbot::PredictionX;
-        outPos.y += v.y / Options::Aimbot::PredictionY;
-        outPos.z += v.z / Options::Aimbot::PredictionX;
+        outPos.x += v.x / px;
+        outPos.y += v.y / py;
+        outPos.z += v.z / px;
     }
 }
 
@@ -459,8 +464,11 @@ inline void ApplyViewportAim(bool active, const Vectors::Vector2& targetPos)
             Memory->write<ViewportOffset>(cameraAddr + Offsets::Camera::Viewport, vp);
             lastActiveWrite = now;
         }
-        else if ((now - lastActiveWrite) >= 50)
+        else if (lastActiveWrite != 0 && (now - lastActiveWrite) >= 50)
         {
+            // Reset only after we actually shifted: without the
+            // lastActiveWrite guard this wrote every 50ms from boot,
+            // touching a viewport field that is unconfirmed on this client.
             ViewportOffset vp;
             vp.x = static_cast<short>(res.x);
             vp.y = static_cast<short>(res.y);

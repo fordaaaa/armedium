@@ -106,10 +106,13 @@ namespace Offsets {
          inline constexpr uintptr_t ImagePlaneDepth = 0x2c4;
          inline constexpr uintptr_t Position = 0xec;
          inline constexpr uintptr_t Rotation = 0xc8;
-         // NOTE: upstream dump marks Viewport/ViewportSize unknown (0x0) for
-         // this version. Values below are carried from version-d584fb6c717a43d9
-         // and NEED re-verifying before using viewport-mode silent aim —
-         // writing ViewportOffset to a wrong offset corrupts camera memory.
+         // WARNING: viewport layout changed on this version. Live scan found
+         // the viewport SIZE shorts (window w/h) at +0x27c, so +0x28c below
+         // is NOT the size field and its purpose is unconfirmed. Writing the
+         // ViewportOffset shift here every frame risks corrupting adjacent
+         // camera memory — the code only writes when the Viewport aim method
+         // is explicitly selected. Do not "fix" this to 0x27c: that field
+         // holds the size, not the shift.
          inline constexpr uintptr_t Viewport = 0x28c;
          inline constexpr uintptr_t ViewportSize = 0x2c8;
     }

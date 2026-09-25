@@ -200,15 +200,14 @@ inline void RunTriggerbot()
     if (players.empty())
         return;
 
-    // Get cursor position
+    // Cursor stays in RAW screen coords: WorldToScreen already returns screen
+    // coords (it adds the ClientToScreen origin), so converting to client
+    // coords here would misalign the radius check in windowed mode.
+    // (The old code called FindWindowA with swapped args looking for a window
+    // CLASS named "Roblox", which always returned NULL and accidentally
+    // skipped the conversion — now it's deliberately skipped.)
     POINT p;
     GetCursorPos(&p);
-    
-    HWND robloxWindow = FindWindowA("Roblox", nullptr);
-    if (robloxWindow)
-    {
-        ScreenToClient(robloxWindow, &p);
-    }
 
     Vectors::Vector2 cursorPos = { static_cast<float>(p.x), static_cast<float>(p.y) };
 
@@ -383,25 +382,34 @@ inline void RunTriggerbot()
         {
             // Delay before shooting
             static auto lastFireTime = std::chrono::steady_clock::now();
+            // Non-blocking click: press now, schedule release 20ms later so
+            // the overlay frame loop never stalls on Sleep().
+            static bool clickHeld = false;
+            static auto clickDownTime = std::chrono::steady_clock::now();
             auto currentTime = std::chrono::steady_clock::now();
+
+            if (clickHeld && std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - clickDownTime).count() >= 20)
+            {
+                INPUT up = { 0 };
+                up.type = INPUT_MOUSE;
+                up.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+                SendInput(1, &up, sizeof(INPUT));
+                clickHeld = false;
+            }
+
             auto timeSinceLastFire = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFireTime).count();
 
-            if (timeSinceLastFire >= Options::Triggerbot::Delay)
+            if (!clickHeld && timeSinceLastFire >= Options::Triggerbot::Delay)
             {
-                // Simulate mouse click
-                INPUT input = { 0 };
-                input.type = INPUT_MOUSE;
-                input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-                SendInput(1, &input, sizeof(INPUT));
-
-                Sleep(20);
-
-                input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
-                SendInput(1, &input, sizeof(INPUT));
-
+                INPUT down = { 0 };
+                down.type = INPUT_MOUSE;
+                down.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+                SendInput(1, &down, sizeof(INPUT));
+                clickHeld = true;
+                clickDownTime = currentTime;
                 lastFireTime = currentTime;
             }
-            
+
             return; // Only shoot at one target at a time
         }
     }
