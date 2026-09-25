@@ -152,6 +152,24 @@ inline void GetTargetBoneAndPosition(const RobloxPlayer& player, RobloxInstance&
 
     outPos = outPart.Position();
 
+    // Legit target selection: if the chosen bone is behind a wall but another
+    // part is visible, aim the visible part instead of snapping to a walled
+    // head. Only when visibility checks are on.
+    if (Options::Aimbot::VisibleOnly && Options::WallCheck::Enabled && outPart.address)
+    {
+        Vectors::Vector3 camPos = WallCheck_GetCameraPosition();
+        if (!IsPointVisible(camPos, outPos, nullptr, outPart.address))
+        {
+            RobloxInstance visPart(0);
+            Vectors::Vector3 visPos = GetNearestBonePart(player, visPart);
+            if (visPart.address)
+            {
+                outPart = visPart;
+                outPos = visPos;
+            }
+        }
+    }
+
     if (Options::Aimbot::Prediction && outPart.address != 0)
     {
         // Prediction sliders bottom out at 0 — guard the divide.
@@ -190,71 +208,43 @@ inline RobloxPlayer GetClosestPlayer()
 
 inline float ApplySmoothnessCurve(float smoothness, int curveType)
 {
-    // Apply curve transformation based on selected type
-    // Use exponential scaling for more balanced control across the range
+    // Slider runs 0..50 — normalize to 0..1 first. (The old code fed the raw
+    // slider into pow(1-smoothness, ...), which goes NaN for any value >= 1
+    // and sent the camera spinning — the "crazy aimbot".)
+    // t = fraction of remaining angle closed per frame: 1 = instant snap.
+    float s = std::clamp(smoothness / 50.0f, 0.0f, 1.0f);
+    float u = 1.0f - s;
     float t;
     switch (curveType)
     {
-        case 0: // Linear - exponential scaling for better balance
-        {
-            // Map 0.0-1.0 smoothness to exponential speed curve
-            // Lower values = faster, higher values = much slower
-            float exponent = 1.0f + (smoothness * 4.0f); // 1.0 to 5.0
-            t = pow(1.0f - smoothness, exponent);
+        case 1: // Ease In
+            t = u * u * u;
             break;
-        }
-        case 1: // Ease In (starts slow, ends fast)
-        {
-            float exponent = 1.5f + (smoothness * 3.0f);
-            t = pow(1.0f - smoothness, exponent);
+        case 2: // Ease Out (gentle landing — best default for legit play)
+            t = powf(u, 1.5f);
             break;
-        }
-        case 2: // Ease Out (starts fast, ends slow)
-        {
-            float exponent = 2.0f + (smoothness * 2.5f);
-            t = pow(1.0f - smoothness, exponent);
+        case 3: // Ease In-Out
+            t = u * u * (3.0f - 2.0f * u);
             break;
-        }
-        case 3: // Ease In-Out (smooth on both ends)
-        {
-            float exponent = 1.8f + (smoothness * 3.5f);
-            t = pow(1.0f - smoothness, exponent);
-            break;
-        }
-        case 4: // Custom Bezier Curve
+        case 4: // Custom Bezier (Y control points)
         {
             if (Options::Aimbot::CustomCurveEnabled)
             {
-                // Cubic Bezier curve with control points
-                float p0 = 0.0f;
                 float p1 = Options::Aimbot::CustomCurveP1[1];
                 float p2 = Options::Aimbot::CustomCurveP2[1];
-                float p3 = 1.0f;
-                
-                float u = 1.0f - smoothness;
-                float tt = smoothness * smoothness;
-                float ttt = tt * smoothness;
-                float uu = u * u;
-                float uuu = uu * u;
-                
-                // Bezier formula
-                float curveValue = uuu * p0 + 3 * uu * smoothness * p1 + 3 * u * tt * p2 + ttt * p3;
-                t = 1.0f - curveValue;
+                float b = 3 * (1 - s) * (1 - s) * s * p1 + 3 * (1 - s) * s * s * p2 + s * s * s;
+                t = 1.0f - b;
             }
             else
             {
-                // Fallback to linear if custom not enabled
-                float exponent = 1.0f + (smoothness * 4.0f);
-                t = pow(1.0f - smoothness, exponent);
+                t = u * u;
             }
             break;
         }
+        case 0: // Linear
         default:
-        {
-            float exponent = 1.0f + (smoothness * 4.0f);
-            t = pow(1.0f - smoothness, exponent);
+            t = u * u;
             break;
-        }
     }
     return std::clamp<float>(t, 0.001f, 1.0f);
 }
@@ -329,12 +319,10 @@ inline void Mouse(const Vectors::Vector2& targetPos, const POINT& p)
         dy += shakeY;
     }
 
-    // Apply smoothness curve
+    // Apply smoothness curve: t is the per-frame fraction of the remaining
+    // angle to close (0..1, never amplified — the old 50x scale made even
+    // small deltas violent).
     float t = ApplySmoothnessCurve(Options::Aimbot::Smoothness, Options::Aimbot::SmoothnessCurve);
-    
-    // Scale for mouse movement (higher = faster)
-    float speedScale = 50.0f;
-    t = t * speedScale;
 
     float moveX = dx * t;
     float moveY = dy * t;
@@ -386,10 +374,9 @@ inline void MouseSendInput(const Vectors::Vector2& targetPos, const POINT& curre
     // a floor here would break the compensation at high sensitivity (the
     // crosshair overshoots) and deaden the top of the Mouse Sens slider.
     float sensitivityScale = std::clamp(1.0f / (sensitivity + 0.2f), 0.0f, 2.0f);
-    float speedScale = 1.5f;
 
-    float moveX = dx * t * sensitivityScale * speedScale;
-    float moveY = dy * t * sensitivityScale * speedScale;
+    float moveX = dx * t * sensitivityScale;
+    float moveY = dy * t * sensitivityScale;
 
     accumulatedX += moveX;
     accumulatedY += moveY;

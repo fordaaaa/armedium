@@ -42,6 +42,59 @@ namespace Menu
         return ImVec4(Options::Misc::MenuAccentColor[0], Options::Misc::MenuAccentColor[1], Options::Misc::MenuAccentColor[2], 1.0f);
     }
 
+    inline void RefreshAccent()
+    {
+        ImVec4* c = ImGui::GetStyle().Colors;
+        c[ImGuiCol_CheckMark] = Accent();
+        c[ImGuiCol_SliderGrab] = Accent();
+        c[ImGuiCol_SliderGrabActive] = Accent();
+    }
+
+    // Full dark theme. Applied once; accent-driven colors refresh per frame.
+    inline void InitStyle()
+    {
+        ImGuiStyle& s = ImGui::GetStyle();
+        s.WindowRounding = 10.f;
+        s.ChildRounding = 6.f;
+        s.FrameRounding = 6.f;
+        s.GrabRounding = 4.f;
+        s.ScrollbarRounding = 4.f;
+        s.FramePadding = ImVec2(8, 4);
+        s.ItemSpacing = ImVec2(6, 5);
+        s.ItemInnerSpacing = ImVec2(6, 4);
+        s.ScrollbarSize = 10.f;
+        s.WindowBorderSize = 0.f;
+        s.ChildBorderSize = 0.f;
+        s.FrameBorderSize = 0.f;
+
+        ImVec4* c = s.Colors;
+        c[ImGuiCol_Text] = ImVec4(.92f, .92f, .95f, 1.f);
+        c[ImGuiCol_TextDisabled] = ImVec4(.45f, .45f, .52f, 1.f);
+        c[ImGuiCol_WindowBg] = ImVec4(0, 0, 0, 0);
+        c[ImGuiCol_ChildBg] = ImVec4(0, 0, 0, 0);
+        c[ImGuiCol_PopupBg] = ImVec4(.07f, .07f, .09f, .98f);
+        c[ImGuiCol_Border] = ImVec4(.16f, .16f, .20f, 1.f);
+        c[ImGuiCol_FrameBg] = ImVec4(.11f, .11f, .14f, 1.f);
+        c[ImGuiCol_FrameBgHovered] = ImVec4(.15f, .15f, .19f, 1.f);
+        c[ImGuiCol_FrameBgActive] = ImVec4(.18f, .18f, .23f, 1.f);
+        c[ImGuiCol_TitleBg] = ImVec4(0, 0, 0, 0);
+        c[ImGuiCol_TitleBgActive] = ImVec4(0, 0, 0, 0);
+        c[ImGuiCol_CheckMark] = Accent();
+        c[ImGuiCol_SliderGrab] = Accent();
+        c[ImGuiCol_SliderGrabActive] = Accent();
+        c[ImGuiCol_Button] = ImVec4(.12f, .12f, .15f, 1.f);
+        c[ImGuiCol_ButtonHovered] = ImVec4(.17f, .17f, .22f, 1.f);
+        c[ImGuiCol_ButtonActive] = ImVec4(.20f, .20f, .26f, 1.f);
+        c[ImGuiCol_Header] = ImVec4(.14f, .14f, .18f, 1.f);
+        c[ImGuiCol_HeaderHovered] = ImVec4(.18f, .18f, .23f, 1.f);
+        c[ImGuiCol_Separator] = ImVec4(.16f, .16f, .20f, 1.f);
+        c[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
+        c[ImGuiCol_ScrollbarGrab] = ImVec4(.22f, .22f, .28f, 1.f);
+        c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(.30f, .30f, .37f, 1.f);
+        c[ImGuiCol_ScrollbarGrabActive] = ImVec4(.35f, .35f, .43f, 1.f);
+        RefreshAccent();
+    }
+
     // ── filter-aware widgets (hidden when they don't match the search) ─────
     inline bool Toggle(const char* label, bool* v)
     {
@@ -529,6 +582,9 @@ namespace Menu
     // ── shell ──────────────────────────────────────────────────────────────
     inline void Render(HWND hwnd, ImGuiIO& io, ImFont* font, bool menuOpen)
     {
+        static bool styled = false;
+        if (!styled) { InitStyle(); styled = true; }
+        RefreshAccent();
         // per-frame housekeeping (moved out of renderer.cpp)
         static bool lastStreamProof = Options::Misc::StreamProof;
         if (lastStreamProof != Options::Misc::StreamProof)
@@ -588,7 +644,8 @@ namespace Menu
             ImGui::TextUnformatted("armedium");
             ImGui::SameLine();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(.55f, .55f, .62f, 1.f));
-            ImGui::TextUnformatted("v2");
+            std::string verTag = Offsets::ClientVersion.size() > 14 ? Offsets::ClientVersion.substr(8, 6) : Offsets::ClientVersion;
+            ImGui::TextUnformatted(verTag.c_str());
             ImGui::PopStyleColor();
             ImGui::SameLine(win.x - pad - 214);
             ImGui::PushItemWidth(210);

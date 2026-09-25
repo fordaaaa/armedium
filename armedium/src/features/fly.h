@@ -43,12 +43,17 @@ inline bool Fly_UpdateToggle()
     return Options::Fly::Enabled && Options::Fly::Toggled;
 }
 
-inline void Fly_Deactivate(uintptr_t humanoid)
+inline void Fly_Deactivate(uintptr_t humanoid, uintptr_t primitive)
 {
     if (humanoid)
     {
         Memory->write<bool>(humanoid + Offsets::Humanoid::PlatformStand, false);
         Memory->write<bool>(humanoid + Offsets::Humanoid::AutoRotate, true);
+    }
+    if (primitive)
+    {
+        Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
+        Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
     }
     if (FlyState::GravitySaved)
     {
@@ -87,7 +92,7 @@ void FlyLoop()
             if (!active)
             {
                 if (FlyState::WasActive)
-                    Fly_Deactivate(humanoid.address);
+                    Fly_Deactivate(humanoid.address, primitive);
                 continue;
             }
 
@@ -131,6 +136,17 @@ void FlyLoop()
                 cf.y += move.y;
                 cf.z += move.z;
                 Memory->write<sCFrame>(primitive + Offsets::Primitive::Rotation, cf);
+                // Carry the physics body along: sustained velocity keeps motion
+                // smooth between teleports and works in games that sanitize
+                // raw position writes but still simulate client velocity.
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, move * 100.f);
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
+            }
+            else
+            {
+                // Hover: kill drift so you hang still instead of sliding.
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
+                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
             }
 
             FlyState::WasActive = true;

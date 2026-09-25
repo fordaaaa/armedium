@@ -14,7 +14,7 @@ namespace Options
 		inline float KeybindListY = 80.0f;
 		inline bool StreamProof = false;
 		inline bool ShowConsole = true;
-		inline float MenuAccentColor[3] = {1.0f, 0.41f, 0.71f}; // Pink (255, 105, 180) converted to 0-1 range
+		inline float MenuAccentColor[3] = {0.50f, 0.58f, 1.00f}; // Indigo
 
 		// UI Features
 		inline bool NotificationsEnabled = true;
@@ -67,7 +67,7 @@ namespace Options
 	namespace ESP
 	{
 		inline bool TeamCheck = false;
-		inline int BoxType = 0; // 0 = None, 1 = Normal Box, 2 = 3D Box
+		inline int BoxType = 1; // 0 = None, 1 = Normal Box, 2 = 3D Box
 		inline bool Tracers = false;
 		inline int TracersStart = 0;
 		inline bool Skeleton = false;
@@ -138,8 +138,8 @@ namespace Options
 		inline bool DownedCheck = false;
 		inline bool StickyAim = false;
 		inline float FOV = 100.f;
-		inline float Smoothness = 0.f;
-		inline int SmoothnessCurve = 0; // 0=Linear, 1=Ease In, 2=Ease Out, 3=Ease In-Out, 4=Custom
+		inline float Smoothness = 20.f;
+		inline int SmoothnessCurve = 2; // 0=Linear, 1=Ease In, 2=Ease Out, 3=Ease In-Out, 4=Custom
 		inline bool CustomCurveEnabled = false;
 		inline float CustomCurveP1[2] = {0.25f, 0.25f}; // First control point
 		inline float CustomCurveP2[2] = {0.75f, 0.75f}; // Second control point

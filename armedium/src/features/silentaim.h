@@ -20,6 +20,41 @@ inline RobloxInstance SilentAim_GetTargetPart(const RobloxPlayer& player, int bo
     return GetAimTargetBone(player, boneIdx);
 }
 
+// Nearest VISIBLE part to the crosshair: used when the requested bone is
+// walled off, so silent aim lands on exposed mass instead of a hidden head.
+inline bool SilentAim_NearestVisible(const RobloxPlayer& player, RobloxInstance& outPart, Vectors::Vector3& outPos)
+{
+    POINT p;
+    GetCursorPos(&p);
+    Vectors::Vector3 camPos = WallCheck_GetCameraPosition();
+    float best = FLT_MAX;
+    RobloxInstance bestPart(0);
+    Vectors::Vector3 bestPos{ 0.f, 0.f, 0.f };
+    for (int b = 0; b < 8; b++)
+    {
+        RobloxInstance part = GetAimTargetBone(player, b);
+        if (!part.address) continue;
+        Vectors::Vector3 pos = part.Position();
+        if (!IsPointVisible(camPos, pos, nullptr, part.address)) continue;
+        Vectors::Vector2 s = WorldToScreen(pos);
+        if (s.x == -1 && s.y == -1) continue;
+        float dx = s.x - (float)p.x, dy = s.y - (float)p.y;
+        float d = dx * dx + dy * dy;
+        if (d < best) { best = d; bestPart = part; bestPos = pos; }
+    }
+    if (!bestPart.address) return false;
+    if (Options::SilentAim::Prediction)
+    {
+        float px = Options::SilentAim::PredictionX != 0.f ? Options::SilentAim::PredictionX : 1.f;
+        float py = Options::SilentAim::PredictionY != 0.f ? Options::SilentAim::PredictionY : 1.f;
+        Vectors::Vector3 v = GetVelocity(bestPart);
+        bestPos.x += v.x / px; bestPos.y += v.y / py; bestPos.z += v.z / px;
+    }
+    outPart = bestPart;
+    outPos = bestPos;
+    return true;
+}
+
 inline Vectors::Vector3 SilentAim_GetAimPos(const RobloxPlayer& player)
 {
     int bone = Options::SilentAim::TargetBone;
@@ -77,10 +112,19 @@ inline void SilentAim_Apply(const RobloxPlayer& target)
     if (aimDist < 0.001f)
         return;
 
-    // Visibility gate: never spoof while the target part is behind a wall
+    // Visibility: never spoof a walled bone — fall back to the nearest
+    // visible part so shots stay legit instead of tracking through walls.
+    // Nothing visible at all means hold fire this tick.
     if (Options::SilentAim::VisibleOnly && Options::WallCheck::Enabled &&
         !IsPointVisible(camPos, aimPos, nullptr, targetPart.address))
-        return;
+    {
+        RobloxInstance visPart(0);
+        Vectors::Vector3 visPos{ 0.f, 0.f, 0.f };
+        if (!SilentAim_NearestVisible(target, visPart, visPos))
+            return;
+        targetPart = visPart;
+        aimPos = visPos;
+    }
 
     // Method 2: Viewport shift (works in FPS games like Rivals). Shifts the
     // render viewport so the target sits under the crosshair.
