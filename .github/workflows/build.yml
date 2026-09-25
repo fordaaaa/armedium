@@ -87,7 +87,7 @@ jobs:
     - name: Link
       shell: pwsh
       run: |
-        g++.exe armedium\build\obj\*.o "$env:RUNNER_TEMP\luck.o" -o armedium\build\armedium-mingw.exe -mconsole -static -ld3d11 -ld3dcompiler -ldxgi -ldwmapi -lgdi32 -limm32 -lwinhttp -lole32 -loleaut32 -lshell32 -lshlwapi -luser32 -lkernel32
+        g++.exe armedium\build\obj\*.o "$env:RUNNER_TEMP\luck.o" -o armedium\build\armedium-mingw.exe -mconsole -static -lpsapi -ld3d11 -ld3dcompiler -ldxgi -ldwmapi -lgdi32 -limm32 -lwinhttp -lole32 -loleaut32 -lshell32 -lshlwapi -luser32 -lkernel32
         if ($LASTEXITCODE -ne 0) { exit 1 }
 
     - name: Upload artifact

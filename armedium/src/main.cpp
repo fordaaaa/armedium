@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <windows.h>
 #include "Memory/MemoryManager.h"
+#include "rbx/OffsetVersion.h"
 #include "overlay/renderer.h"
 #include "features/misc.h"
 #include "features/hitboxexpander.h"
@@ -87,6 +88,29 @@ int main()
     }
 
     log("Succesfully attached!", 1);
+
+    // ── Client version gate ─────────────────────────────────────────────
+    // Offsets are tied to one exact client build. Running against any other
+    // version reads/writes the wrong addresses (broken features at best,
+    // crashes and memory corruption at worst), so refuse instead of guessing.
+    {
+        std::string imagePath = Memory->getProcessImagePath();
+        std::string clientVersion = ParseRobloxClientVersion(imagePath);
+        std::string expectedVersion = ROBOX_CLIENT_VERSION;
+        log(std::string("Client version -> " + (clientVersion.empty() ? std::string("<unknown>") : clientVersion)), 0);
+        if (!clientVersion.empty() && clientVersion != expectedVersion)
+        {
+            log(std::string("Version mismatch! Expected " + expectedVersion + ", found " + clientVersion), 2);
+            log("This build only supports " + expectedVersion + ". Grab a matching release or update offsets.", 2);
+            log("Press any key to exit...", 0);
+            MessageBoxA(NULL,
+                ("Version mismatch!\n\nThis build supports " + expectedVersion + "\nbut your client is " + clientVersion +
+                 ".\n\nRunning anyway would read the wrong memory.\nGet a matching build or update the offsets.").c_str(),
+                "armedium", MB_ICONERROR | MB_OK);
+            std::cin.get();
+            return -1;
+        }
+    }
 
     if (Memory->getProcessId("RobloxPlayerBeta.exe") == 0)
     {

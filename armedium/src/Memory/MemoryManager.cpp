@@ -1,5 +1,7 @@
 #include "MemoryManager.h"
 #include <vector>
+#include <psapi.h>
+#pragma comment(lib, "psapi.lib")
 
 int32_t MemoryManager::getProcessId(const std::string& processName) {
 	uint32_t processId = 0;
@@ -114,6 +116,38 @@ void MemoryManager::setProcessId(int32_t newProcessId) {
 
 uintptr_t MemoryManager::getBaseAddress() {
 	return baseAddress;
+}
+
+std::string MemoryManager::getProcessImagePath() {
+	char path[MAX_PATH] = {};
+	if (!processHandle)
+		return {};
+	if (!GetModuleFileNameExA(processHandle, NULL, path, MAX_PATH))
+		return {};
+	return std::string(path);
+}
+
+// Extracts "version-xxxxxxxxxxxxxxxx" from a client install path such as
+// ...\Versions\version-2366ba214ec740ca\RobloxPlayerBeta.exe.
+// Works for stock installs and bootstrappers (Bloxstrap/Froststrap keep the
+// same version-folder layout). Returns "" when not found.
+std::string ParseRobloxClientVersion(const std::string& imagePath) {
+	const std::string tag = "version-";
+	size_t pos = imagePath.find(tag);
+	while (pos != std::string::npos) {
+		if (pos + tag.size() + 16 <= imagePath.size()) {
+			bool hex = true;
+			for (size_t i = 0; i < 16; i++) {
+				char c = imagePath[pos + tag.size() + i];
+				if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')))
+				{ hex = false; break; }
+			}
+			if (hex)
+				return imagePath.substr(pos, tag.size() + 16);
+		}
+		pos = imagePath.find(tag, pos + 1);
+	}
+	return {};
 }
 
 void MemoryManager::setBaseAddress(uintptr_t newBaseAddress) {

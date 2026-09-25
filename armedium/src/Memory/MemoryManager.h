@@ -5,6 +5,10 @@
 #include <string>
 #include <memory>
 
+// Extracts "version-xxxxxxxxxxxxxxxx" from a client install path.
+// Defined in MemoryManager.cpp.
+std::string ParseRobloxClientVersion(const std::string& imagePath);
+
 extern "C" int64_t
 Luck_ReadVirtualMemory
 (
@@ -37,6 +41,9 @@ public:
 
 	int32_t getProcessId(const std::string& processName);
 	uintptr_t getModuleAddress(const std::string& moduleName);
+
+	// Full image path of the attached process (used for client version check).
+	std::string getProcessImagePath();
 
 	bool attachToProcess(const std::string& processName);
 
