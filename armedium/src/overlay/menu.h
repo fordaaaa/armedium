@@ -26,6 +26,10 @@ namespace Menu
     inline char Filter[64] = {};
     inline float MenuAlpha = 0.0f;
     inline float BgAlpha = 0.0f;
+    // Manual window placement: the menu is frameless (not draggable by the
+    // OS), so we center it on open and let the user drag it by the title.
+    inline ImVec2 WinPos = ImVec2(-1, -1);
+    inline bool WasMenuOpen = false;
 
     // ── search filter ──────────────────────────────────────────────────────
     inline bool Match(const char* label)
@@ -620,17 +624,36 @@ namespace Menu
             if (MenuAlpha > 0.f) MenuAlpha -= speed; if (MenuAlpha < 0.f) MenuAlpha = 0.f;
             if (BgAlpha > 0.f) BgAlpha -= speed; if (BgAlpha < 0.f) BgAlpha = 0.f;
         }
-        if (!menuOpen && MenuAlpha <= 0.f) return;
+        if (!menuOpen && MenuAlpha <= 0.f) { WasMenuOpen = false; return; }
 
         if (Options::Misc::DimBackground && BgAlpha > 0.f)
             ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0),
                 ImVec2(io.DisplaySize.x, io.DisplaySize.y), IM_COL32(0, 0, 0, (int)(BgAlpha * 180)));
 
         const ImVec2 size(700, 470);
+
+        // Placement: recenter on every open transition (fresh DisplaySize),
+        // never trust a stale/negative position.
+        if ((menuOpen && !WasMenuOpen) || WinPos.x < 0)
+        {
+            float cx = io.DisplaySize.x > size.x ? (io.DisplaySize.x - size.x) * .5f : 0.f;
+            float cy = io.DisplaySize.y > size.y ? (io.DisplaySize.y - size.y) * .5f : 0.f;
+            WinPos = ImVec2(cx < 0 ? 0 : cx, cy < 0 ? 0 : cy);
+        }
+        WasMenuOpen = menuOpen;
+        // Clamp so it can never end up fully off-screen.
+        if (io.DisplaySize.x > 0 && io.DisplaySize.y > 0)
+        {
+            if (WinPos.x < -500) WinPos.x = -500;
+            if (WinPos.y < 0) WinPos.y = 0;
+            if (WinPos.x > io.DisplaySize.x - 100) WinPos.x = io.DisplaySize.x - 100;
+            if (WinPos.y > io.DisplaySize.y - 50) WinPos.y = io.DisplaySize.y - 50;
+        }
+
+        ImGui::SetNextWindowPos(WinPos, ImGuiCond_Always);
         ImGui::SetNextWindowSize(size);
         ImGui::SetNextWindowBgAlpha(MenuAlpha);
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, MenuAlpha);
-        ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - size.x) * .5f, (io.DisplaySize.y - size.y) * .5f), ImGuiCond_Once);
         ImGui::Begin("##armedium", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground);
         {
             ImGui::PushFont(font);
@@ -648,7 +671,15 @@ namespace Menu
             const float pad = 12.f, sideW = 148.f;
             const float topH = 44.f;
 
-            // header
+            // header (left part doubles as a drag handle — the window is frameless)
+            ImGui::SetCursorPos(ImVec2(pad + 2, 6));
+            ImGui::InvisibleButton("##menudrag", ImVec2(190, 30));
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                ImVec2 dl = ImGui::GetIO().MouseDelta;
+                WinPos.x += dl.x;
+                WinPos.y += dl.y;
+            }
             ImGui::SetCursorPos(ImVec2(pad + 4, 10));
             ImGui::TextUnformatted("armedium");
             ImGui::SameLine();
