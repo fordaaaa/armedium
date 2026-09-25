@@ -27,7 +27,13 @@ public:
 
 	inline std::string Name() const
 	{
-		return Memory->readString(Memory->read<uintptr_t>(address + Offsets::Instance::Name));
+		// Instance names now live behind NameContainer (instance + 0x70):
+		// the name string object sits at container + 0x08 (verified live
+		// on version-2366ba214ec740ca across DataModel/services/Workspace).
+		uintptr_t nameContainer = Memory->read<uintptr_t>(address + Offsets::Instance::NameContainer);
+		if (!nameContainer)
+			return {};
+		return Memory->readString(nameContainer + 0x8);
 	}
 
 	inline std::string Class() const

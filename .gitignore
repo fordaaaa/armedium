@@ -12,3 +12,14 @@ opencode.json
 package.json
 package-lock.json
 .DS_Store
+# VS / MSVC build outputs
+armedium/build/
+armedium/x64/
+armedium/Debug/
+armedium/Release/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+.vs/

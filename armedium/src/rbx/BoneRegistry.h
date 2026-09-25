@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <array>
-#include "../SDK/SDK.h"
+#include "SDK/SDK.h"
 
 // ─── Universal Bone ID ─────────────────────────────────────────────────────
 // Every aim/ESP feature references bones by BoneId instead of hardcoded struct

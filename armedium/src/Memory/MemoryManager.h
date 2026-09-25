@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <TlHelp32.h>
+#include <cstdint>
 #include <string>
 #include <memory>
 
