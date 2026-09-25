@@ -414,6 +414,15 @@ namespace Menu
         Color("Color", Options::HitboxChams::Color);
     }
 
+    inline void PageWorld()
+    {
+        Section("World Visuals");
+        Toggle("Fullbright", &Options::WorldVisuals::Fullbright);
+        Toggle("No Fog", &Options::WorldVisuals::NoFog);
+        Toggle("Day Time", &Options::WorldVisuals::DayTime);
+        Slider("Clock Time", &Options::WorldVisuals::Clock, 0.f, 24.f, "%.1f");
+    }
+
     inline void PageFly()
     {
         Section("Fly");
@@ -690,13 +699,13 @@ namespace Menu
             ImGui::SameLine();
             ImGui::BeginChild("##body", ImVec2(win.x - sideW - pad * 2 - 6, win.y - topH - 24), false, ImGuiWindowFlags_NoBackground);
             {
-                const char* subs[4][4] = {
-                    { "Aimbot", "Triggerbot", "Hitbox", "Silent" },
-                    { "ESP", "Colors", "Part Chams", "Hitbox Chams" },
-                    { nullptr, nullptr, nullptr, nullptr }, // Movement handled below (5 pills)
-                    { "Settings", "Config", nullptr, nullptr },
+                const char* subs[4][5] = {
+                    { "Aimbot", "Triggerbot", "Hitbox", "Silent", nullptr },
+                    { "ESP", "Colors", "Part Chams", "Hitbox Chams", "World" },
+                    { nullptr, nullptr, nullptr, nullptr, nullptr }, // Movement handled below (5 pills)
+                    { "Settings", "Config", nullptr, nullptr, nullptr },
                 };
-                int subCount[4] = { 4, 4, 0, 2 };
+                int subCount[4] = { 4, 5, 0, 2 };
                 if (Tab == 2)
                 {
                     static const char* msubs[] = { "Fly", "Speed", "Fling", "Teleport", "Player" };
@@ -737,7 +746,8 @@ namespace Menu
                         if (Sub[1] == 0) PageESP();
                         else if (Sub[1] == 1) PageColors();
                         else if (Sub[1] == 2) PagePartChams();
-                        else PageHitboxChams();
+                        else if (Sub[1] == 3) PageHitboxChams();
+                        else PageWorld();
                     }
                     else if (Tab == 2)
                     {

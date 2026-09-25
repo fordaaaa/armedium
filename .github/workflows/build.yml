@@ -7,7 +7,10 @@ on:
     branches: ["*"]
 
 jobs:
-  build:
+  # Native Visual Studio build (what contributors use locally).
+  # The project targets v145; runners that only have the v143 toolchain
+  # get an automatic override so CI stays green on either.
+  build-msvc:
     runs-on: windows-latest
 
     steps:
@@ -16,11 +19,79 @@ jobs:
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
-    - name: Build
-      run: msbuild armedium/armedium.sln /p:Configuration=Release /p:Platform=x64
+    - name: Build (Release x64)
+      shell: pwsh
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $has145 = & $vswhere -latest -requires Microsoft.VisualStudio.Component.VC.v145.x86.x64 -property installationPath
+        $toolset = if ($has145) { "v145" } else { "v143" }
+        echo "Using PlatformToolset=$toolset"
+        msbuild armedium/armedium.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=$toolset /m /v:minimal /nologo
+        if ($LASTEXITCODE -ne 0) { exit 1 }
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: armedium
+        name: armedium-msvc
         path: armedium/build/armedium.exe
+
+  # Portable MinGW-w64 build (pinned toolchain, no VS dependency).
+  # Mirrors the maintainer's local build exactly.
+  build-mingw:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install portable MinGW-w64
+      shell: pwsh
+      run: |
+        $url = 'https://github.com/brechtsanders/winlibs_mingw/releases/download/16.2.0posix-14.0.0-ucrt-r1/winlibs-x86_64-posix-seh-gcc-16.2.0-mingw-w64ucrt-14.0.0-r1.zip'
+        Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\winlibs.zip"
+        Expand-Archive -LiteralPath "$env:RUNNER_TEMP\winlibs.zip" -DestinationPath "$env:RUNNER_TEMP\winlibs" -Force
+        echo "$env:RUNNER_TEMP\winlibs\mingw64\bin" >> $env:GITHUB_PATH
+        g++.exe --version
+
+    - name: Assemble syscall stub (GAS equivalent of src/Memory/Luck.asm)
+      shell: pwsh
+      run: |
+        @'
+        .intel_syntax noprefix
+        .text
+        .globl Luck_ReadVirtualMemory
+        Luck_ReadVirtualMemory:
+            mov r10, rcx
+            mov eax, 63
+            syscall
+            ret
+        .globl Luck_WriteVirtualMemory
+        Luck_WriteVirtualMemory:
+            mov r10, rcx
+            mov eax, 58
+            syscall
+            ret
+        '@ | Out-File -Encoding ascii "$env:RUNNER_TEMP\luck_gas.s"
+        gcc.exe -c "$env:RUNNER_TEMP\luck_gas.s" -o "$env:RUNNER_TEMP\luck.o"
+
+    - name: Compile
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path 'armedium\build\obj' -Force | Out-Null
+        $src = @('src\Memory\MemoryManager.cpp','src\main.cpp','src\overlay\imgui\imgui.cpp','src\overlay\imgui\imgui_demo.cpp','src\overlay\imgui\imgui_draw.cpp','src\overlay\imgui\imgui_impl_dx11.cpp','src\overlay\imgui\imgui_impl_win32.cpp','src\overlay\imgui\imgui_tables.cpp','src\overlay\imgui\imgui_widgets.cpp','src\overlay\renderer.cpp')
+        foreach ($f in $src) {
+          $o = 'armedium\build\obj\' + ([IO.Path]::GetFileNameWithoutExtension($f)) + '.o'
+          g++.exe -std=c++20 -O2 -Wno-unknown-pragmas -Wno-conversion-null -Wno-deprecated-enum-enum-conversion -I armedium\src\overlay\imgui -I armedium\src\overlay -c "armedium\$f" -o $o
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+        }
+
+    - name: Link
+      shell: pwsh
+      run: |
+        g++.exe armedium\build\obj\*.o "$env:RUNNER_TEMP\luck.o" -o armedium\build\armedium-mingw.exe -mconsole -static -ld3d11 -ld3dcompiler -ldxgi -ldwmapi -lgdi32 -limm32 -lwinhttp -lole32 -loleaut32 -lshell32 -lshlwapi -luser32 -lkernel32
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: armedium-mingw
+        path: armedium/build/armedium-mingw.exe

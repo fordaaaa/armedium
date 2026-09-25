@@ -12,6 +12,7 @@
 #include "features/speed.h"
 #include "features/fling.h"
 #include "features/silentaim.h"
+#include "features/worldvisuals.h"
 #include "features/wallcheck.h"
 #include "rbx/Caches/playercache.h"
 #include "rbx/Caches/playerobjectscache.h"
@@ -198,6 +199,7 @@ int main()
     std::thread(AntiFlingLoop).detach();
     std::thread(RunSilentAim).detach();
     std::thread(RunWallCheckCache).detach();
+    std::thread(RunWorldVisuals).detach();
 
     SendWebhookAsync("Started", 1);
 

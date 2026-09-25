@@ -411,6 +411,13 @@ namespace Options
 		inline float ThemeBlueAccent[3] = {0.2f, 0.6f, 1.0f};
 		inline float ThemeGreenAccent[3] = {0.2f, 1.0f, 0.4f};
 	}
+	namespace WorldVisuals
+	{
+		inline bool Fullbright = false;
+		inline bool NoFog = false;
+		inline bool DayTime = false;
+		inline float Clock = 14.0f;
+	}
 	namespace UIAnimations
 	{
 		// Pulse effect settings

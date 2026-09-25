@@ -82,6 +82,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\overlay;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -96,6 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\overlay;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -108,6 +110,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\overlay;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -123,6 +126,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)src\overlay;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -181,6 +185,16 @@
     <ClInclude Include="src\features\triggerbot.h" />
     <ClInclude Include="src\features\macro.h" />
     <ClInclude Include="src\features\crosshair.h" />
+    <ClInclude Include="src\features\silentaim.h" />
+    <ClInclude Include="src\features\hitboxchams.h" />
+    <ClInclude Include="src\features\partchams.h" />
+    <ClInclude Include="src\features\wallcheck.h" />
+    <ClInclude Include="src\features\TargetSelector.h" />
+    <ClInclude Include="src\features\fling.h" />
+    <ClInclude Include="src\features\gravity.h" />
+    <ClInclude Include="src\rbx\OffsetVersion.h" />
+    <ClInclude Include="src\rbx\BoneRegistry.h" />
+    <ClInclude Include="src\overlay\menu.h" />
   </ItemGroup>
   <!-- Assembly Files -->
   <ItemGroup>

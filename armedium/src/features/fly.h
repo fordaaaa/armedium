@@ -4,6 +4,7 @@
 #include "gravity.h"
 #include <thread>
 #include <chrono>
+#include <cmath>
 
 // ─── CFrame fly ────────────────────────────────────────────────────────────
 // Moves the HumanoidRootPart CFrame every tick (camera-relative WASD,
@@ -108,8 +109,11 @@ void FlyLoop()
             Gravity::Write(0.f);
             Gravity::WriteRO(0.f);
 
-            // Camera-relative wish direction.
-            Vectors::Vector3 move(0, 0, 0);
+            // Camera-relative wish direction, then carried by physics velocity.
+            // Velocity-primary (no CFrame teleports): teleports fight the
+            // physics body and read as jitter/rubber-banding. Gravity stays
+            // zeroed so velocity is the only force.
+            Vectors::Vector3 wish(0, 0, 0);
             auto camera = Globals::Roblox::Camera;
             if (camera.address)
             {
@@ -117,37 +121,31 @@ void FlyLoop()
                 Vectors::Vector3 forward = cam.GetLookVector();
                 Vectors::Vector3 right = cam.GetRightVector();
                 forward.y = 0.f;
-                forward = forward.Normalize();
-                right = right.Normalize();
+                if (forward.Magnitude() > 1e-6f && right.Magnitude() > 1e-6f)
+                {
+                    forward = forward.Normalize();
+                    right = right.Normalize();
+                    if (GetAsyncKeyState('W') & 0x8000) wish = wish + forward;
+                    if (GetAsyncKeyState('S') & 0x8000) wish = wish - forward;
+                    if (GetAsyncKeyState('A') & 0x8000) wish = wish - right;
+                    if (GetAsyncKeyState('D') & 0x8000) wish = wish + right;
+                }
+            }
+            if (GetAsyncKeyState(VK_SPACE) & 0x8000 || GetAsyncKeyState('E') & 0x8000) wish.y += 1.f;
+            if (GetAsyncKeyState(VK_SHIFT) & 0x8000 || GetAsyncKeyState('C') & 0x8000) wish.y -= 1.f;
 
-                if (GetAsyncKeyState('W') & 0x8000) move = move + forward;
-                if (GetAsyncKeyState('S') & 0x8000) move = move - forward;
-                if (GetAsyncKeyState('A') & 0x8000) move = move - right;
-                if (GetAsyncKeyState('D') & 0x8000) move = move + right;
-            }
-            if (GetAsyncKeyState(VK_SPACE) & 0x8000 || GetAsyncKeyState('E') & 0x8000) move.y += 1.f;
-            if (GetAsyncKeyState(VK_SHIFT) & 0x8000 || GetAsyncKeyState('C') & 0x8000) move.y -= 1.f;
-
-            if (move.x != 0.f || move.y != 0.f || move.z != 0.f)
+            Vectors::Vector3 targetVel(0, 0, 0);
+            if (wish.Magnitude() > 1e-6f)
             {
-                move = move.Normalize() * (0.01f * Options::Fly::Speed);
-                sCFrame cf = Memory->read<sCFrame>(primitive + Offsets::Primitive::Rotation);
-                cf.x += move.x;
-                cf.y += move.y;
-                cf.z += move.z;
-                Memory->write<sCFrame>(primitive + Offsets::Primitive::Rotation, cf);
-                // Carry the physics body along: sustained velocity keeps motion
-                // smooth between teleports and works in games that sanitize
-                // raw position writes but still simulate client velocity.
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, move * 100.f);
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
+                wish = wish.Normalize();
+                float mag = wish.Magnitude();
+                // Normalize() on a garbage vector could still yield NaN if the
+                // camera matrix is mid-update — never feed NaN to physics.
+                if (std::isfinite(mag) && mag > 1e-6f && std::isfinite(wish.x + wish.y + wish.z))
+                    targetVel = wish * Options::Fly::Speed;
             }
-            else
-            {
-                // Hover: kill drift so you hang still instead of sliding.
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, Vectors::Vector3(0, 0, 0));
-                Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
-            }
+            Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyLinearVelocity, targetVel);
+            Memory->write<Vectors::Vector3>(primitive + Offsets::Primitive::AssemblyAngularVelocity, Vectors::Vector3(0, 0, 0));
 
             FlyState::WasActive = true;
         }
