@@ -2,18 +2,25 @@
 
 #include "../rbx/globals/options.h"
 #include "../rbx/globals/globals.h"
+#include "gravity.h"
 
 #include <thread>
 
-// Noclip: disable both Primitive collision flags AND BasePart::CanCollide.
-// Newer Roblox versions check both independently — clearing only the Primitive
-// flags leaves CanCollide active on the BasePart, so walls still block you.
+// Noclip: clear the Primitive collision-flag bits. NOTE: do NOT write to
+// part+0x8 (old BasePart::CanCollide alias) — live memory shows a heap
+// pointer there, so a bool write corrupts it. Flags alone are sufficient.
+inline bool IsCollidablePart(const RobloxInstance& part)
+{
+	if (!part.address) return false;
+	std::string c = part.Class();
+	return c == "Part" || c == "MeshPart" || c == "WedgePart" || c == "CornerWedgePart" ||
+		c == "TrussPart" || c == "UnionOperation" || c == "SpawnLocation" ||
+		c == "Seat" || c == "VehicleSeat";
+}
+
 inline void DisablePartCollision(const RobloxInstance& part)
 {
-	if (!part.address) return;
-	// BasePart-level CanCollide (offset 0x8 on the part object)
-	Memory->write<bool>(part.address + Offsets::BasePart::CanCollide, false);
-	// Primitive-level collision flags
+	if (!IsCollidablePart(part)) return;
 	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
 	if (!primitive) return;
 	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
@@ -23,10 +30,7 @@ inline void DisablePartCollision(const RobloxInstance& part)
 
 inline void RestorePartCollision(const RobloxInstance& part)
 {
-	if (!part.address) return;
-	// Restore BasePart CanCollide
-	Memory->write<bool>(part.address + Offsets::BasePart::CanCollide, true);
-	// Restore Primitive collision flags
+	if (!IsCollidablePart(part)) return;
 	uintptr_t primitive = Memory->read<uintptr_t>(part.address + Offsets::BasePart::Primitive);
 	if (!primitive) return;
 	uint8_t flags = Memory->read<uint8_t>(primitive + Offsets::Primitive::Flags);
@@ -164,24 +168,24 @@ inline void MiscLoop()
 					DisablePartCollision(part);
 			}
 
-			// Gravity Modifier
-			if (Options::GravityMod::Enabled && Globals::Roblox::Workspace.address != 0)
+		// Gravity Modifier (goes through the World object — see gravity.h)
+		if (Options::GravityMod::Enabled)
+		{
+			if (!wasGravityEnabled)
 			{
-				if (!wasGravityEnabled)
-				{
-					originalGravity = Memory->read<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity);
-					originalReadOnlyGravity = Memory->read<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity);
-					wasGravityEnabled = true;
-				}
-				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, Options::GravityMod::Value);
-				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, Options::GravityMod::Value);
+				originalGravity = Gravity::Read();
+				originalReadOnlyGravity = Gravity::ReadRO();
+				wasGravityEnabled = true;
 			}
-			else if (wasGravityEnabled && Globals::Roblox::Workspace.address != 0)
-			{
-				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::Gravity, originalGravity);
-				Memory->write<float>(Globals::Roblox::Workspace.address + Offsets::Workspace::ReadOnlyGravity, originalReadOnlyGravity);
-				wasGravityEnabled = false;
-			}
+			Gravity::Write(Options::GravityMod::Value);
+			Gravity::WriteRO(Options::GravityMod::Value);
+		}
+		else if (wasGravityEnabled)
+		{
+			Gravity::Write(originalGravity);
+			Gravity::WriteRO(originalReadOnlyGravity);
+			wasGravityEnabled = false;
+		}
 
 			// Jump Power Modifier
 			if (Options::JumpPowerMod::Enabled && humanoid.address != 0)
